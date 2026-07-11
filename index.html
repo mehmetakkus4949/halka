@@ -1,0 +1,1321 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<title>Çember</title>
+
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0E1416">
+<meta name="background-color" content="#0E1416">
+<meta name="description" content="Kayıp yakınlarınız, evcil hayvanlarınız, bisikletleriniz ve araçlarınız için çevrenizdeki kullanıcılara kademeli olarak genişleyen bildirim ağı.">
+
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Çember">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" href="icons/icon-192.png">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tabler-icons/2.44.0/iconfont/tabler-icons.min.css">
+
+<style>
+  :root {
+    --ink: #0E1416;
+    --panel: #161F22;
+    --panel-2: #1D282B;
+    --line: #2A3639;
+    --line-soft: #212C2F;
+    --text: #EAF0EE;
+    --text-dim: #93A5A2;
+    --text-faint: #5E7371;
+    --signal: #57D9A3;
+    --signal-dim: #2C5B4B;
+    --amber: #F2A93B;
+    --amber-dim: #4D3C1E;
+    --danger: #E3654F;
+    --danger-dim: #4A2A22;
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    height: 100%;
+    background: var(--ink);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    overscroll-behavior: none;
+  }
+  .mono { font-family: 'SF Mono', 'JetBrains Mono', Consolas, monospace; }
+
+  #app-shell {
+    height: 100dvh;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    overflow: hidden;
+  }
+  .statusbar-spacer { height: var(--safe-top); flex-shrink: 0; background: var(--ink); }
+
+  .screen {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .topbar {
+    padding: 10px 20px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .brand { display: flex; align-items: center; gap: 8px; }
+  .brand .dot {
+    width: 9px; height: 9px; border-radius: 50%; background: var(--signal);
+    box-shadow: 0 0 0 3px var(--signal-dim);
+  }
+  .brand .name { font-size: 16px; font-weight: 600; letter-spacing: 0.3px; }
+  .icon-btn {
+    width: 36px; height: 36px; border-radius: 10px; background: var(--panel);
+    display: flex; align-items: center; justify-content: center;
+    border: 0.5px solid var(--line); color: var(--text-dim); font-size: 17px;
+    cursor: pointer;
+  }
+
+  h1.page-title { font-size: 23px; font-weight: 600; padding: 4px 20px 2px; }
+  p.page-sub { font-size: 13.5px; color: var(--text-dim); padding: 0 20px 14px; line-height: 1.5; }
+
+  .segment { display: flex; gap: 6px; padding: 0 20px 14px; overflow-x: auto; }
+  .segment::-webkit-scrollbar { display: none; }
+  .chip {
+    flex-shrink: 0; padding: 8px 14px; border-radius: 100px; font-size: 13px;
+    background: var(--panel); border: 0.5px solid var(--line); color: var(--text-dim);
+    cursor: pointer; display: flex; align-items: center; gap: 5px; white-space: nowrap;
+  }
+  .chip.active { background: var(--signal-dim); border-color: var(--signal); color: var(--signal); }
+
+  .card-list { padding: 0 16px 110px; display: flex; flex-direction: column; gap: 10px; }
+
+  .alert-card {
+    background: var(--panel); border: 0.5px solid var(--line); border-radius: 16px;
+    padding: 14px; cursor: pointer; position: relative;
+  }
+  .alert-card:active { background: var(--panel-2); }
+  .ac-top { display: flex; gap: 11px; }
+  .ac-icon {
+    width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center; font-size: 20px;
+  }
+  .ac-icon.bisiklet { background: var(--signal-dim); color: var(--signal); }
+  .ac-icon.evcil { background: var(--amber-dim); color: var(--amber); }
+  .ac-icon.arac { background: #2B3854; color: #7FA6E8; }
+  .ac-icon.kisi { background: var(--danger-dim); color: var(--danger); }
+  .ac-body { flex: 1; min-width: 0; }
+  .ac-title { font-size: 15px; font-weight: 600; margin-bottom: 2px; }
+  .ac-meta { font-size: 12.5px; color: var(--text-dim); display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .ac-meta .sep { color: var(--text-faint); }
+  .ac-stage-row { display: flex; align-items: center; gap: 6px; margin-top: 10px; }
+  .ac-stage-track { flex: 1; height: 4px; background: var(--line-soft); border-radius: 2px; overflow: hidden; }
+  .ac-stage-fill { height: 100%; background: var(--signal); border-radius: 2px; transition: width 0.6s ease; }
+  .ac-stage-label { font-size: 11.5px; color: var(--text-dim); flex-shrink: 0; }
+  .found-badge {
+    position: absolute; top: 12px; right: 12px; font-size: 10.5px; font-weight: 600;
+    background: var(--signal-dim); color: var(--signal); padding: 3px 8px; border-radius: 100px;
+  }
+
+  .fab {
+    position: fixed; bottom: calc(78px + var(--safe-bottom)); right: 20px; width: 58px; height: 58px; border-radius: 50%;
+    background: var(--danger); color: #fff; border: none; font-size: 25px;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 8px 20px rgba(227,101,79,0.4); cursor: pointer; z-index: 5;
+  }
+
+  .navbar {
+    height: calc(64px + var(--safe-bottom)); flex-shrink: 0; background: var(--panel); border-top: 0.5px solid var(--line);
+    display: flex; align-items: flex-start; justify-content: space-around; padding-top: 9px;
+    padding-bottom: var(--safe-bottom);
+  }
+  .nav-item {
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    color: var(--text-faint); font-size: 10.5px; cursor: pointer; width: 62px;
+  }
+  .nav-item i { font-size: 22px; }
+  .nav-item.active { color: var(--signal); }
+
+  .radar-wrap { padding: 6px 20px 18px; display: flex; justify-content: center; }
+  .radar-svg-box { width: 260px; height: 260px; position: relative; max-width: 100%; }
+  .radar-ring {
+    position: absolute; border-radius: 50%; border: 1px solid var(--line);
+    top: 50%; left: 50%; transform: translate(-50%,-50%);
+  }
+  .radar-ring.filled { border-color: var(--signal); background: rgba(87,217,163,0.05); }
+  .radar-ring.pulsing::after {
+    content: ''; position: absolute; inset: -1px; border-radius: 50%;
+    border: 1px solid var(--signal); animation: pulse-ring 2.2s ease-out infinite;
+  }
+  @keyframes pulse-ring {
+    0% { transform: scale(0.92); opacity: 0.8; }
+    100% { transform: scale(1.25); opacity: 0; }
+  }
+  .radar-center {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+    width: 14px; height: 14px; border-radius: 50%; background: var(--danger);
+    box-shadow: 0 0 0 5px rgba(227,101,79,0.25); z-index: 3;
+  }
+
+  .timeline { padding: 0 20px 6px; }
+  .tl-row { display: flex; gap: 12px; }
+  .tl-marker-col { display: flex; flex-direction: column; align-items: center; }
+  .tl-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--line); flex-shrink: 0; margin-top: 3px; }
+  .tl-dot.done { background: var(--signal); }
+  .tl-dot.now { background: var(--danger); box-shadow: 0 0 0 4px rgba(227,101,79,0.25); }
+  .tl-line { width: 1.5px; flex: 1; background: var(--line); min-height: 26px; }
+  .tl-line.done { background: var(--signal); }
+  .tl-content { padding-bottom: 22px; }
+  .tl-title { font-size: 14px; font-weight: 600; }
+  .tl-sub { font-size: 12px; color: var(--text-dim); margin-top: 1px; }
+
+  .detail-header { padding: 4px 20px 0; }
+  .detail-title { font-size: 20px; font-weight: 600; line-height: 1.3; margin: 8px 0 4px; }
+  .detail-desc { font-size: 14px; color: var(--text-dim); line-height: 1.6; padding-bottom: 4px; }
+  .detail-meta-row { display: flex; gap: 14px; padding: 12px 0; border-top: 0.5px solid var(--line-soft); border-bottom: 0.5px solid var(--line-soft); margin: 10px 0 18px; }
+  .dm-item { flex: 1; }
+  .dm-label { font-size: 10.5px; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.4px; }
+  .dm-value { font-size: 14.5px; font-weight: 600; margin-top: 2px; }
+
+  .section-label { font-size: 12px; font-weight: 600; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.5px; padding: 0 20px 10px; }
+
+  .detail-chip-wrap { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 20px 18px; }
+  .detail-chip {
+    background: var(--panel); border: 0.5px solid var(--line); border-radius: 10px;
+    padding: 8px 12px; min-width: 0;
+  }
+  .detail-chip .dc-label { font-size: 10px; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.3px; }
+  .detail-chip .dc-value { font-size: 13.5px; font-weight: 600; margin-top: 2px; }
+
+  .tip-item { padding: 10px 20px; display: flex; gap: 10px; }
+  .tip-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--signal); margin-top: 6px; flex-shrink: 0; }
+  .tip-text { font-size: 13.5px; line-height: 1.5; }
+  .tip-meta { font-size: 11.5px; color: var(--text-faint); margin-top: 2px; }
+
+  .btn-primary {
+    display: flex; align-items: center; justify-content: center; gap: 7px;
+    background: var(--signal); color: #06231A; font-weight: 600; font-size: 14.5px;
+    padding: 14px; border-radius: 12px; border: none; cursor: pointer; width: 100%;
+  }
+  .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-danger { background: var(--danger); color: #fff; }
+  .btn-ghost { background: var(--panel); color: var(--text); border: 0.5px solid var(--line); }
+  .action-bar { padding: 6px 20px 20px; display: flex; gap: 8px; }
+  .action-bar.sticky { position: sticky; bottom: 0; background: linear-gradient(0deg, var(--ink) 60%, transparent); }
+
+  .cat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 4px 20px 20px; }
+  .cat-tile {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 16px;
+    padding: 20px 14px; display: flex; flex-direction: column; gap: 10px; cursor: pointer;
+  }
+  .cat-tile.selected { border-color: var(--signal); background: var(--signal-dim); }
+  .cat-tile .cat-icon-lg { font-size: 23px; }
+  .cat-tile .cat-name { font-size: 14px; font-weight: 600; }
+  .cat-tile.selected .cat-name { color: var(--signal); }
+
+  .field-group { padding: 0 20px 16px; }
+  .field-label { font-size: 12.5px; color: var(--text-dim); margin-bottom: 7px; display: block; }
+  .field-input, .field-textarea, .field-select {
+    width: 100%; background: var(--panel); border: 0.5px solid var(--line); border-radius: 12px;
+    color: var(--text); font-size: 15px; padding: 13px 14px; font-family: inherit;
+  }
+  .field-select { appearance: none; -webkit-appearance: none; background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2393A5A2' stroke-width='2'><polyline points='6 9 12 15 18 9'/></svg>"); background-repeat: no-repeat; background-position: right 14px center; }
+  .field-textarea { resize: none; height: 82px; }
+  .field-input:focus, .field-textarea:focus, .field-select:focus { outline: none; border-color: var(--signal); }
+  .photo-add {
+    width: 100%; height: 90px; border-radius: 12px; border: 1px dashed var(--line);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 6px; color: var(--text-faint); font-size: 12.5px; cursor: pointer;
+  }
+  .loc-box {
+    display: flex; align-items: center; gap: 10px; background: var(--panel);
+    border: 0.5px solid var(--line); border-radius: 12px; padding: 13px 14px; font-size: 13.5px;
+  }
+  .loc-box i { color: var(--signal); font-size: 17px; }
+  .field-error { font-size: 12px; color: var(--danger); margin-top: 6px; display: none; }
+  .field-error.show { display: block; }
+  .field-input.invalid { border-color: var(--danger); background: rgba(227,101,79,0.06); }
+
+  .settings-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 20px; border-bottom: 0.5px solid var(--line-soft);
+  }
+  .settings-left { display: flex; align-items: center; gap: 12px; }
+  .settings-left i { font-size: 19px; color: var(--text-dim); width: 20px; text-align: center; }
+  .settings-title { font-size: 14.5px; }
+  .settings-sub { font-size: 12px; color: var(--text-faint); margin-top: 1px; }
+  .toggle {
+    width: 42px; height: 25px; border-radius: 100px; background: var(--line);
+    position: relative; cursor: pointer; flex-shrink: 0; transition: background 0.2s;
+  }
+  .toggle.on { background: var(--signal); }
+  .toggle .knob {
+    position: absolute; top: 2px; left: 2px; width: 21px; height: 21px; border-radius: 50%;
+    background: #fff; transition: left 0.2s;
+  }
+  .toggle.on .knob { left: 19px; }
+
+  .avatar-lg {
+    width: 72px; height: 72px; border-radius: 50%; background: var(--panel-2);
+    display: flex; align-items: center; justify-content: center; font-size: 27px;
+    color: var(--signal); border: 1px solid var(--line); margin: 6px auto 12px;
+  }
+  .center-text { text-align: center; }
+
+  .notif-item { display: flex; gap: 12px; padding: 14px 20px; border-bottom: 0.5px solid var(--line-soft); }
+  .notif-icon {
+    width: 38px; height: 38px; border-radius: 10px; background: var(--panel);
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: var(--signal); font-size: 17px;
+  }
+  .notif-text { font-size: 13.5px; line-height: 1.45; }
+  .notif-time { font-size: 11.5px; color: var(--text-faint); margin-top: 3px; }
+
+  .toast {
+    position: fixed; bottom: calc(80px + var(--safe-bottom)); left: 20px; right: 20px; background: var(--panel-2);
+    border: 0.5px solid var(--signal); border-radius: 12px; padding: 13px 15px;
+    font-size: 13px; display: flex; align-items: center; gap: 10px; z-index: 20;
+    transform: translateY(20px); opacity: 0; transition: all 0.35s ease; pointer-events: none;
+  }
+  .toast.show { transform: translateY(0); opacity: 1; }
+  .toast i { color: var(--signal); font-size: 17px; }
+
+  .empty-state { padding: 70px 30px; text-align: center; color: var(--text-faint); }
+  .empty-state i { font-size: 30px; margin-bottom: 10px; display: block; }
+  .empty-state div { font-size: 13.5px; line-height: 1.6; }
+
+  .map-mock {
+    margin: 0 16px 16px; height: 340px; border-radius: 18px; background:
+      radial-gradient(circle at 30% 30%, #182225, #0F1517 70%);
+    border: 0.5px solid var(--line); position: relative; overflow: hidden;
+  }
+  .map-pin {
+    position: absolute; width: 30px; height: 30px; border-radius: 50%; transform: translate(-50%,-50%);
+    display: flex; align-items: center; justify-content: center; font-size: 14px; cursor: pointer;
+  }
+  .map-you {
+    position: absolute; width: 14px; height: 14px; border-radius: 50%; background: #7FA6E8;
+    box-shadow: 0 0 0 6px rgba(127,166,232,0.25); transform: translate(-50%,-50%);
+  }
+
+  .install-banner {
+    margin: 0 16px 12px; padding: 12px 14px; background: var(--panel);
+    border: 0.5px solid var(--signal); border-radius: 14px; display: flex; align-items: center; gap: 10px;
+    font-size: 12.5px; color: var(--text-dim);
+  }
+  .install-banner i { color: var(--signal); font-size: 18px; flex-shrink: 0; }
+  .install-banner b { color: var(--text); }
+
+  .auth-screen { min-height: 100%; display: flex; flex-direction: column; justify-content: center; padding: 20px 24px 40px; }
+  .auth-logo { width: 56px; height: 56px; border-radius: 16px; background: var(--panel); border: 1px solid var(--line);
+    display: flex; align-items: center; justify-content: center; margin: 0 auto 18px; position: relative; }
+  .auth-logo .ring { position: absolute; border-radius: 50%; border: 1.5px solid var(--signal); opacity: 0.5; }
+  .auth-title { font-size: 22px; font-weight: 700; text-align: center; margin-bottom: 6px; }
+  .auth-sub { font-size: 13.5px; color: var(--text-dim); text-align: center; margin-bottom: 28px; line-height: 1.5; padding: 0 10px; }
+  .auth-tabs { display: flex; background: var(--panel); border-radius: 12px; padding: 3px; margin-bottom: 22px; border: 0.5px solid var(--line); }
+  .auth-tab { flex: 1; text-align: center; padding: 9px; font-size: 13.5px; font-weight: 600; color: var(--text-faint); border-radius: 9px; cursor: pointer; }
+  .auth-tab.active { background: var(--signal-dim); color: var(--signal); }
+  .auth-row { display: flex; gap: 10px; }
+  .auth-row .field-group { flex: 1; padding-left: 0; padding-right: 0; }
+  .captcha-box {
+    background: var(--panel); border: 0.5px solid var(--line); border-radius: 12px; padding: 14px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .captcha-eq { font-size: 17px; font-weight: 700; font-family: 'SF Mono', monospace; color: var(--text); flex-shrink: 0; }
+  .captcha-input { width: 64px; text-align: center; background: var(--panel-2); border: 0.5px solid var(--line);
+    border-radius: 8px; color: var(--text); font-size: 16px; padding: 8px; font-family: inherit; }
+  .captcha-refresh { margin-left: auto; color: var(--text-faint); font-size: 18px; cursor: pointer; }
+  .captcha-note { font-size: 11px; color: var(--text-faint); margin-top: 8px; display: flex; gap: 6px; align-items: flex-start; }
+  .captcha-note i { flex-shrink: 0; margin-top: 1px; }
+</style>
+</head>
+<body>
+
+<div id="app-shell">
+  <div class="statusbar-spacer"></div>
+  <div class="screen" id="cb-screen"></div>
+  <div class="navbar" id="cb-navbar">
+    <div class="nav-item" data-nav="feed"><i class="ti ti-list"></i>Ana sayfa</div>
+    <div class="nav-item" data-nav="map"><i class="ti ti-map-2"></i>Harita</div>
+    <div class="nav-item" data-nav="report"><i class="ti ti-circle-plus"></i>Bildir</div>
+    <div class="nav-item" data-nav="notifs"><i class="ti ti-bell"></i>Bildirimler</div>
+    <div class="nav-item" data-nav="profile"><i class="ti ti-user"></i>Profil</div>
+  </div>
+  <div class="toast" id="cb-toast"><i class="ti ti-radar-2"></i><span id="cb-toast-text"></span></div>
+</div>
+
+<script>
+(function(){
+  const STAGES = [
+    { label: '500 m', short: '500m', minutes: 0, size: 70 },
+    { label: '2 km', short: '2km', minutes: 15, size: 130 },
+    { label: '5 km', short: '5km', minutes: 60, size: 190 },
+    { label: '20 km', short: '20km', minutes: 180, size: 250 },
+  ];
+
+  const CATS = {
+    bisiklet: { icon: 'ti-bike', name: 'Bisiklet / motor', cls: 'bisiklet',
+      fields: [
+        { key: 'marka', label: 'Marka / model', placeholder: 'Örn. Trek FX 2' },
+        { key: 'renk', label: 'Renk', placeholder: 'Örn. Kırmızı' },
+        { key: 'seri', label: 'Seri numarası (varsa)', placeholder: 'Çerçeve üzerinde olabilir' },
+      ] },
+    arac: { icon: 'ti-car', name: 'Araç', cls: 'arac',
+      fields: [
+        { key: 'plaka', label: 'Plaka', placeholder: '35 ABC 123' },
+        { key: 'marka', label: 'Marka / model', placeholder: 'Örn. Fiat Egea' },
+        { key: 'renk', label: 'Renk', placeholder: 'Örn. Gri' },
+        { key: 'yil', label: 'Model yılı', placeholder: 'Örn. 2019' },
+      ] },
+    evcil: { icon: 'ti-paw', name: 'Evcil hayvan', cls: 'evcil',
+      fields: [
+        { key: 'tur', label: 'Tür', type: 'select', options: ['Köpek','Kedi','Kuş','Diğer'] },
+        { key: 'isim', label: 'İsmi', placeholder: 'Örn. Zeki' },
+        { key: 'cins', label: 'Cinsi (biliniyorsa)', placeholder: 'Örn. Golden retriever' },
+        { key: 'renk', label: 'Renk', placeholder: 'Örn. Kahverengi' },
+      ] },
+    kisi: { icon: 'ti-user-exclamation', name: 'Kişi', cls: 'kisi',
+      fields: [
+        { key: 'yas', label: 'Yaklaşık yaş', placeholder: 'Örn. 7 yaşında' },
+        { key: 'boy', label: 'Boy (biliniyorsa)', placeholder: 'Örn. 160 cm' },
+        { key: 'kiyafet', label: 'Üzerindeki kıyafet', placeholder: 'Örn. Mavi mont, siyah pantolon' },
+        { key: 'ozellik', label: 'Ayırt edici özellik', placeholder: 'Örn. Gözlüklü' },
+      ] },
+  };
+
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+
+  // Backend'in çalıştığı adres. Kendi sunucunu farklı bir yerde host edersen burayı değiştir.
+  // Uygulama http://localhost:3000 üzerinden açıldıysa (önerilen), aynı adresi kullan.
+  // file:// üzerinden açıldıysa (eski yöntem), varsayılan olarak localhost:3000'i dener.
+  const API_BASE_URL = (location.protocol === 'http:' || location.protocol === 'https:')
+    ? location.origin
+    : 'http://localhost:3000';
+
+  // ---------- Gerçek API katmanı ----------
+  // Backend ayaktaysa gerçek isteklerde bulunur; ulaşılamıyorsa null döner ve
+  // uygulama otomatik olarak yerel demo moduna düşer (bkz. state.backendAvailable).
+  const api = {
+    async health() {
+      try {
+        const res = await fetch(API_BASE_URL + '/api/health', { signal: AbortSignal.timeout(2000) });
+        return res.ok;
+      } catch { return false; }
+    },
+    async request(path, opts = {}) {
+      try {
+        const headers = { 'Content-Type': 'application/json', ...(opts.headers || {}) };
+        if (state.token) headers['Authorization'] = 'Bearer ' + state.token;
+        const res = await fetch(API_BASE_URL + path, { ...opts, headers });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) return { ok: false, status: res.status, error: data.error || 'Bilinmeyen hata' };
+        return { ok: true, data };
+      } catch (e) {
+        return { ok: false, status: 0, error: 'Sunucuya ulaşılamadı' };
+      }
+    },
+    register(body) { return this.request('/api/auth/register', { method: 'POST', body: JSON.stringify(body) }); },
+    login(body) { return this.request('/api/auth/login', { method: 'POST', body: JSON.stringify(body) }); },
+    me() { return this.request('/api/auth/me'); },
+    listAlerts(lat, lng) {
+      const q = (typeof lat === 'number' && typeof lng === 'number') ? `?lat=${lat}&lng=${lng}` : '';
+      return this.request('/api/alerts' + q);
+    },
+    createAlert(body) { return this.request('/api/alerts', { method: 'POST', body: JSON.stringify(body) }); },
+    addTip(id, text) { return this.request(`/api/alerts/${id}/tips`, { method: 'POST', body: JSON.stringify({ text }) }); },
+    markFound(id) { return this.request(`/api/alerts/${id}/found`, { method: 'PATCH' }); },
+  };
+
+  // Kullanıcının konumunu ister; reddedilir veya desteklenmezse null döner (uygulama çökmez).
+  let insecureLocationWarningShown = false;
+  function getMyLocation() {
+    return new Promise((resolve) => {
+      if (!('geolocation' in navigator)) return resolve(null);
+      if (!window.isSecureContext) {
+        // file:// gibi güvenli olmayan bağlamlarda tarayıcılar konum API'sini genelde
+        // sessizce reddeder (izin ekranda "verildi" görünse bile). Kullanıcıyı bir kez uyar.
+        if (!insecureLocationWarningShown) {
+          insecureLocationWarningShown = true;
+          showToast('Konum için uygulamayı http://localhost:3000 üzerinden açman gerekiyor.');
+        }
+        return resolve(null);
+      }
+      navigator.geolocation.getCurrentPosition(
+        (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+        () => resolve(null),
+        { timeout: 6000, maximumAge: 5 * 60 * 1000 }
+      );
+    });
+  }
+
+  function mapApiAlert(a) {
+    return {
+      id: a.id, cat: a.category, title: a.title, desc: a.description,
+      details: a.details, distance: (typeof a.distanceKm === 'number') ? a.distanceKm : null,
+      photoDataUrl: a.photoDataUrl || null,
+      stageIdx: a.stageIdx, elapsedMin: a.elapsedMinutes,
+      status: a.status, tips: [], _fromApi: true,
+    };
+  }
+
+  // Fotoğrafı tarayıcıda küçültüp sıkıştırarak base64'e çevirir (sunucuya az veri gönderilsin diye)
+  function compressImageFile(file, maxDim = 900, quality = 0.72) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = reject;
+      reader.onload = () => {
+        const img = new Image();
+        img.onerror = reject;
+        img.onload = () => {
+          let { width, height } = img;
+          if (width > maxDim || height > maxDim) {
+            if (width > height) { height = Math.round(height * (maxDim / width)); width = maxDim; }
+            else { width = Math.round(width * (maxDim / height)); height = maxDim; }
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = width; canvas.height = height;
+          canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', quality));
+        };
+        img.src = reader.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  let state = {
+    nav: 'auth',
+    authMode: 'register',
+    user: null,
+    token: null,
+    backendAvailable: false,
+    myLat: null,
+    myLng: null,
+    reportPhotoDataUrl: null,
+    reportTitleDraft: '',
+    reportDescDraft: '',
+    feedFilter: 'all',
+    users: [],
+    captcha: null,
+    detailId: null,
+    reportStep: 1,
+    reportCat: null,
+    reportDetails: {},
+    alerts: [
+      { id: 1, cat: 'bisiklet', title: 'Kırmızı şehir bisikleti çalındı', desc: 'Apartman girişindeki bisiklet standından yaklaşık 20 dakika içinde çalındı. Gidon üzerinde siyah bant var.',
+        details: { marka: 'Bianchi', renk: 'Kırmızı', seri: '—' },
+        distance: 0.4, stageIdx: 2, elapsedMin: 68, status: 'aktif',
+        tips: [ { text: 'Aynı bisikleti az önce köşedeki markette bağlı gördüm sanırım, emin değilim.', time: '12 dk önce', by: 'Yakındaki kullanıcı' } ] },
+      { id: 2, cat: 'evcil', title: 'Kahverengi golden retriever kayboldu', desc: 'Park yürüyüşü sırasında tasması koptu ve kaçtı. Boynunda mavi tasma var, ismini duyunca gelir.',
+        details: { tur: 'Köpek', isim: 'Zeki', cins: 'Golden retriever', renk: 'Kahverengi' },
+        distance: 1.2, stageIdx: 3, elapsedMin: 210, status: 'aktif', tips: [] },
+      { id: 3, cat: 'arac', title: 'Gri Fiat Egea çalındı', desc: 'Site otoparkından gece saatlerinde çalındı, plaka bilgisi polis raporunda mevcut.',
+        details: { plaka: '35 ABC 123', marka: 'Fiat Egea', renk: 'Gri', yil: '2019' },
+        distance: 3.1, stageIdx: 1, elapsedMin: 8, status: 'aktif', tips: [] },
+      { id: 4, cat: 'bisiklet', title: 'Mor dağ bisikleti bulundu', desc: 'Sahil yolunda bırakılmış şekilde bulundu, sahibine ulaşıldı.',
+        details: { marka: 'Giant', renk: 'Mor', seri: '—' },
+        distance: 0.8, stageIdx: 1, elapsedMin: 340, status: 'bulundu', tips: [] },
+    ],
+    notifCatsOn: { bisiklet: true, evcil: true, arac: true, kisi: true },
+    maxRadius: 15,
+    nextId: 5,
+  };
+
+  const screenEl = document.getElementById('cb-screen');
+  const navbarEl = document.getElementById('cb-navbar');
+
+  function esc(s){ return (s||'').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+  function showToast(text){
+    const t = document.getElementById('cb-toast');
+    document.getElementById('cb-toast-text').textContent = text;
+    t.classList.add('show');
+    clearTimeout(t._h);
+    t._h = setTimeout(()=> t.classList.remove('show'), 3200);
+  }
+
+  function fmtElapsed(min){
+    if (min < 60) return min + ' dk önce';
+    const h = Math.floor(min/60);
+    return h + ' sa önce';
+  }
+
+  function newCaptcha(){
+    const a = 1 + Math.floor(Math.random()*8);
+    const b = 1 + Math.floor(Math.random()*8);
+    state.captcha = { a, b, answer: a + b };
+  }
+
+  function captchaHtml(inputId, refreshId){
+    return `
+      <div class="captcha-box">
+        <div class="captcha-eq">${state.captcha.a} + ${state.captcha.b} = ?</div>
+        <input class="captcha-input" id="${inputId}" inputmode="numeric" maxlength="2" placeholder="?" />
+        <i class="ti ti-refresh captcha-refresh" id="${refreshId}"></i>
+      </div>
+      <div class="captcha-note"><i class="ti ti-shield-lock"></i>Bu basit doğrulama, sahte/otomatik bildirimleri engellemeye yardımcı olur.</div>
+    `;
+  }
+
+  function installBannerHtml(){
+    if (isStandalone) return '';
+    const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+    const msg = isIOS
+      ? 'Paylaş <i class="ti ti-square-arrow-up" style="font-size:13px;"></i> menüsünden <b>Ana Ekrana Ekle</b>\'yi seçerek uygulama gibi kullanabilirsin.'
+      : 'Tarayıcı menüsünden <b>Ana ekrana ekle / Uygulamayı yükle</b> seçeneğini kullanabilirsin.';
+    return `<div class="install-banner"><i class="ti ti-download"></i><div>${msg}</div></div>`;
+  }
+
+  function renderAuth(){
+    navbarEl.style.display = 'none';
+    newCaptcha();
+    const mode = state.authMode;
+    const backendNote = state.backendAvailable
+      ? `<div class="install-banner" style="border-color: var(--signal);"><i class="ti ti-server-2"></i><div>Gerçek sunucuya bağlı — girdiğin bilgiler veritabanına kaydedilecek.</div></div>`
+      : `<div class="install-banner" style="border-color: var(--amber); color: var(--text-dim); align-items:flex-start;">
+          <i class="ti ti-plug-connected-x" style="color: var(--amber); margin-top:2px;"></i>
+          <div style="flex:1;">
+            <div>Backend'e ulaşılamadı, <b>yerel demo modunda</b> çalışıyorsun (veriler kaydedilmez).</div>
+            <div style="margin-top:6px; font-size:11.5px; color: var(--text-faint);">
+              Bilgisayarında <code>backend</code> klasöründe <code>node src/server.js</code> komutunu çalıştır, sonra bu sayfayı <code>file://</code> yerine <code>http://localhost:3000</code> adresinden aç (konum servisi ancak böyle güvenilir çalışır).
+            </div>
+            <div class="btn-link" id="cb-retry-backend" style="text-align:left; padding:8px 0 0;"><i class="ti ti-refresh"></i>&nbsp;Tekrar dene</div>
+          </div>
+        </div>`;
+    screenEl.innerHTML = `
+      <div class="auth-screen">
+        <div class="auth-logo">
+          <div class="ring" style="width:34px;height:34px;"></div>
+          <div class="ring" style="width:22px;height:22px;"></div>
+          <i class="ti ti-radar-2" style="font-size:20px; color: var(--signal); position: relative; z-index: 1;"></i>
+        </div>
+        <div class="auth-title">Çember</div>
+        <div class="auth-sub">Kayıp ve çalıntı bildirimlerinin çevrenizdeki kullanıcılara kademeli olarak ulaştığı topluluk ağı.</div>
+        ${backendNote}
+        <div class="auth-tabs">
+          <div class="auth-tab ${mode==='register'?'active':''}" data-mode="register">Hesap oluştur</div>
+          <div class="auth-tab ${mode==='login'?'active':''}" data-mode="login">Giriş yap</div>
+        </div>
+        ${mode === 'register' ? `
+        <div class="auth-row">
+          <div class="field-group"><label class="field-label">Ad</label><input class="field-input" id="cb-ad" placeholder="Ayşe" /></div>
+          <div class="field-group"><label class="field-label">Soyad</label><input class="field-input" id="cb-soyad" placeholder="Yılmaz" /></div>
+        </div>` : ''}
+        <div class="field-group"><label class="field-label">E-posta</label><input class="field-input" id="cb-email" placeholder="ornek@eposta.com" /></div>
+        <div class="field-group"><label class="field-label">Şifre</label><input class="field-input" id="cb-pass" type="password" placeholder="En az 8 karakter" /></div>
+        <div class="field-group">
+          <label class="field-label">Güvenlik doğrulaması</label>
+          ${captchaHtml('cb-captcha-input','cb-captcha-refresh')}
+          <div class="field-error" id="cb-auth-err">Bilgileri kontrol edip tekrar dene.</div>
+        </div>
+        <div style="padding: 4px 20px 0;">
+          <button class="btn-primary" id="cb-auth-submit">${mode==='register' ? 'Hesap oluştur' : 'Giriş yap'}</button>
+        </div>
+      </div>
+    `;
+    screenEl.querySelectorAll('[data-mode]').forEach(el => {
+      el.onclick = () => { state.authMode = el.dataset.mode; renderAuth(); };
+    });
+    document.getElementById('cb-captcha-refresh').onclick = () => { newCaptcha(); renderAuth(); };
+    ['cb-ad', 'cb-soyad', 'cb-email', 'cb-pass'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.addEventListener('input', () => {
+        el.classList.remove('invalid');
+        document.getElementById('cb-auth-err').classList.remove('show');
+      });
+    });
+    const retryBtn = document.getElementById('cb-retry-backend');
+    if (retryBtn) {
+      retryBtn.onclick = async () => {
+        retryBtn.innerHTML = '<i class="ti ti-loader-2"></i>&nbsp;Kontrol ediliyor...';
+        state.backendAvailable = await api.health();
+        if (state.backendAvailable) showToast('Sunucuya bağlanıldı.');
+        renderAuth();
+      };
+    }
+    document.getElementById('cb-auth-submit').onclick = async () => {
+      const err = document.getElementById('cb-auth-err');
+      const submitBtn = document.getElementById('cb-auth-submit');
+
+      const adInput = document.getElementById('cb-ad');
+      const soyadInput = document.getElementById('cb-soyad');
+      const emailInput = document.getElementById('cb-email');
+      const passInput = document.getElementById('cb-pass');
+
+      // Önceki hata vurgularını temizle
+      [adInput, soyadInput, emailInput, passInput].forEach(el => el && el.classList.remove('invalid'));
+      err.classList.remove('show');
+
+      const ad = mode === 'register' ? adInput.value.trim() : null;
+      const soyad = mode === 'register' ? soyadInput.value.trim() : null;
+      const email = emailInput.value.trim();
+      const pass = passInput.value;
+      const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+      function showFieldError(inputEl, message) {
+        inputEl.classList.add('invalid');
+        err.textContent = message;
+        err.classList.add('show');
+        inputEl.focus();
+      }
+
+      // Sırayla, tek tek doğrula — her biri kendi net mesajını gösterir
+      if (mode === 'register' && !ad) {
+        return showFieldError(adInput, 'İsim kısmı boş geçilemez.');
+      }
+      if (mode === 'register' && !soyad) {
+        return showFieldError(soyadInput, 'Soyad kısmı boş geçilemez.');
+      }
+      if (!email) {
+        return showFieldError(emailInput, 'E-posta kısmı boş geçilemez.');
+      }
+      if (!email.includes('@')) {
+        return showFieldError(emailInput, 'E-posta adresinde "@" işareti eksik.');
+      }
+      if (!EMAIL_RE.test(email)) {
+        return showFieldError(emailInput, 'Geçerli bir e-posta adresi gir (örn. ornek@eposta.com).');
+      }
+      if (!pass) {
+        return showFieldError(passInput, 'Şifre kısmı boş geçilemez.');
+      }
+      if (mode === 'register' && pass.length < 8) {
+        return showFieldError(passInput, 'Şifre en az 8 karakter olmalı.');
+      }
+
+      const captchaVal = Number(document.getElementById('cb-captcha-input').value);
+      if (captchaVal !== state.captcha.answer) {
+        err.textContent = 'Güvenlik doğrulaması yanlış, tekrar dene.';
+        err.classList.add('show');
+        newCaptcha(); renderAuth();
+        return;
+      }
+
+      if (state.backendAvailable) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Bağlanılıyor...';
+        const result = mode === 'register'
+          ? await api.register({ ad, soyad, email, password: pass })
+          : await api.login({ email, password: pass });
+
+        if (!result.ok) {
+          err.textContent = result.error || 'Bir şeyler ters gitti.';
+          err.classList.add('show');
+          submitBtn.disabled = false;
+          submitBtn.textContent = mode==='register' ? 'Hesap oluştur' : 'Giriş yap';
+          newCaptcha(); renderAuth();
+          return;
+        }
+        state.token = result.data.token;
+        state.user = result.data.user;
+        try { localStorage.setItem('cember_token', state.token); } catch {}
+        await loadAlertsFromApi();
+      } else {
+        // Backend yok: yerel demo modu, hiçbir şey kalıcı değil
+        state.user = mode === 'register' ? { ad, soyad, email } : { ad: 'Kullanıcı', soyad: '', email };
+      }
+
+      navbarEl.style.display = '';
+      go('feed');
+      showToast('Hoş geldin, ' + state.user.ad + (state.backendAvailable ? ' (hesabın kaydedildi)' : ' (yerel demo modu)') + '.');
+    };
+  }
+
+  async function loadAlertsFromApi(){
+    if (!state.backendAvailable) return;
+    if (state.myLat === null) {
+      const loc = await getMyLocation();
+      if (loc) { state.myLat = loc.lat; state.myLng = loc.lng; }
+    }
+    const result = await api.listAlerts(state.myLat, state.myLng);
+    if (result.ok && Array.isArray(result.data.alerts)) {
+      state.alerts = result.data.alerts.map(mapApiAlert);
+    }
+  }
+
+  function logout(){
+    state.user = null;
+    state.token = null;
+    try { localStorage.removeItem('cember_token'); } catch {}
+    state.nav = 'auth';
+    navbarEl.style.display = 'none';
+    renderAuth();
+  }
+
+  function renderFeed(){
+    const filter = state.feedFilter || 'all';
+    const alerts = filter === 'all' ? state.alerts : state.alerts.filter(a => a.cat === filter);
+    const cards = alerts.map(a => {
+      const cat = CATS[a.cat];
+      const stage = STAGES[a.stageIdx];
+      const pct = Math.round(((a.stageIdx+1)/STAGES.length)*100);
+      return `
+      <div class="alert-card" data-open="${a.id}">
+        ${a.status === 'bulundu' ? '<div class="found-badge">Bulundu</div>' : ''}
+        <div class="ac-top">
+          <div class="ac-icon ${cat.cls}"><i class="ti ${cat.icon}"></i></div>
+          <div class="ac-body">
+            <div class="ac-title">${esc(a.title)}</div>
+            <div class="ac-meta">
+              <span>${a.distance === null ? 'mesafe bilinmiyor' : a.distance + ' km uzakta'}</span><span class="sep">·</span><span>${fmtElapsed(a.elapsedMin)}</span>
+            </div>
+          </div>
+        </div>
+        ${a.status === 'aktif' ? `
+        <div class="ac-stage-row">
+          <span class="ac-stage-label">Çap</span>
+          <div class="ac-stage-track"><div class="ac-stage-fill" style="width:${pct}%"></div></div>
+          <span class="ac-stage-label mono">${stage.short}</span>
+        </div>` : ''}
+      </div>`;
+    }).join('') || `<div class="empty-state"><i class="ti ti-inbox"></i><div>Bu kategoride aktif bildirim yok.</div></div>`;
+
+    screenEl.innerHTML = `
+      <div class="topbar">
+        <div class="brand" data-go-home="1" style="cursor:pointer;"><span class="dot"></span><span class="name">Çember</span></div>
+        <div class="icon-btn"><i class="ti ti-adjustments"></i></div>
+      </div>
+      <h1 class="page-title">Çevrende olanlar</h1>
+      <p class="page-sub">Aktif kayıp / çalıntı bildirimleri, size en yakından uzağa doğru sıralı.</p>
+      ${installBannerHtml()}
+      <div class="segment">
+        <div class="chip ${filter==='all'?'active':''}" data-filter="all"><i class="ti ti-apps"></i> Tümü</div>
+        <div class="chip ${filter==='bisiklet'?'active':''}" data-filter="bisiklet"><i class="ti ti-bike"></i> Bisiklet</div>
+        <div class="chip ${filter==='arac'?'active':''}" data-filter="arac"><i class="ti ti-car"></i> Araç</div>
+        <div class="chip ${filter==='evcil'?'active':''}" data-filter="evcil"><i class="ti ti-paw"></i> Evcil hayvan</div>
+        <div class="chip ${filter==='kisi'?'active':''}" data-filter="kisi"><i class="ti ti-user-exclamation"></i> Kişi</div>
+      </div>
+      <div class="card-list">${cards}</div>
+      <button class="fab" id="cb-fab"><i class="ti ti-plus"></i></button>
+    `;
+    document.getElementById('cb-fab').onclick = () => go('report');
+    screenEl.querySelectorAll('[data-filter]').forEach(el => {
+      el.onclick = () => { state.feedFilter = el.dataset.filter; renderFeed(); };
+    });
+    screenEl.querySelectorAll('[data-open]').forEach(el => {
+      el.onclick = () => { state.detailId = Number(el.dataset.open); go('detail'); };
+    });
+  }
+
+  function renderDetail(){
+    const a = state.alerts.find(x => x.id === state.detailId);
+    if (!a) return renderFeed();
+    const cat = CATS[a.cat];
+
+    let ringsHtml = '';
+    STAGES.forEach((s, i) => {
+      const reached = i <= a.stageIdx;
+      const isCurrent = i === a.stageIdx && a.status === 'aktif';
+      ringsHtml += `<div class="radar-ring ${reached ? 'filled':''} ${isCurrent ? 'pulsing':''}" style="width:${s.size}px;height:${s.size}px;"></div>`;
+    });
+
+    const timelineHtml = STAGES.map((s, i) => {
+      const reached = i <= a.stageIdx;
+      const isCurrent = i === a.stageIdx;
+      const dotCls = isCurrent && a.status === 'aktif' ? 'now' : (reached ? 'done' : '');
+      const lineCls = i < a.stageIdx ? 'done' : '';
+      const timeLabel = s.minutes === 0 ? 'Bildirim anı' : s.minutes + ' dk sonra';
+      return `
+      <div class="tl-row">
+        <div class="tl-marker-col">
+          <div class="tl-dot ${dotCls}"></div>
+          ${i < STAGES.length-1 ? `<div class="tl-line ${lineCls}"></div>` : ''}
+        </div>
+        <div class="tl-content">
+          <div class="tl-title">${s.label} çap</div>
+          <div class="tl-sub">${timeLabel}${isCurrent && a.status==='aktif' ? ' · şu an burada' : ''}</div>
+        </div>
+      </div>`;
+    }).join('');
+
+    const detailChips = (cat.fields || []).map(f => {
+      const val = (a.details && a.details[f.key]) ? a.details[f.key] : '—';
+      return `<div class="detail-chip"><div class="dc-label">${esc(f.label)}</div><div class="dc-value">${esc(val)}</div></div>`;
+    }).join('');
+
+    const tipsHtml = a.tips.length ? a.tips.map(t => `
+      <div class="tip-item">
+        <div class="tip-dot"></div>
+        <div>
+          <div class="tip-text">${esc(t.text)}</div>
+          <div class="tip-meta">${esc(t.by)} · ${esc(t.time)}</div>
+        </div>
+      </div>`).join('') : `<div class="empty-state" style="padding:20px 20px 30px;"><i class="ti ti-message-circle-2"></i><div>Henüz ipucu bildirilmedi.</div></div>`;
+
+    screenEl.innerHTML = `
+      <div class="topbar">
+        <div class="icon-btn" id="cb-back"><i class="ti ti-arrow-left"></i></div>
+        <div class="icon-btn" data-go-home="1"><i class="ti ti-home-2"></i></div>
+        <div class="icon-btn"><i class="ti ti-dots"></i></div>
+      </div>
+      <div class="detail-header">
+        ${a.photoDataUrl ? `<img src="${a.photoDataUrl}" style="width:100%; height:200px; object-fit:cover; border-radius:14px; margin-bottom:12px;" />` : ''}
+        <div class="ac-icon ${cat.cls}" style="margin-bottom:4px;"><i class="ti ${cat.icon}"></i></div>
+        <div class="detail-title">${esc(a.title)}</div>
+        <div class="detail-desc">${esc(a.desc)}</div>
+      </div>
+      <div class="detail-meta-row">
+        <div class="dm-item"><div class="dm-label">Mesafeniz</div><div class="dm-value">${a.distance === null ? '—' : a.distance + ' km'}</div></div>
+        <div class="dm-item"><div class="dm-label">Geçen süre</div><div class="dm-value">${fmtElapsed(a.elapsedMin)}</div></div>
+        <div class="dm-item"><div class="dm-label">Durum</div><div class="dm-value" style="color:${a.status==='aktif' ? 'var(--danger)' : 'var(--signal)'}">${a.status==='aktif' ? 'Aktif' : 'Bulundu'}</div></div>
+      </div>
+      <div class="section-label">${cat.name} bilgileri</div>
+      <div class="detail-chip-wrap">${detailChips}</div>
+      <div class="section-label">Bildirim yarıçapı</div>
+      <div class="radar-wrap">
+        <div class="radar-svg-box">
+          ${ringsHtml}
+          <div class="radar-center"></div>
+        </div>
+      </div>
+      <div class="section-label">Zaman çizelgesi</div>
+      <div class="timeline">${timelineHtml}</div>
+      <div class="section-label">İpuçları (${a.tips.length})</div>
+      ${tipsHtml}
+      <div style="height:100px;"></div>
+    `;
+    document.getElementById('cb-back').onclick = () => go('feed');
+
+    if (a.status === 'aktif') {
+      const bar = document.createElement('div');
+      bar.className = 'action-bar sticky';
+      bar.innerHTML = `
+        <button class="btn-primary btn-ghost" id="cb-tip"><i class="ti ti-eye"></i> Gördüm, ipucu ver</button>
+        <button class="btn-primary" id="cb-found" style="flex:0 0 120px; background:var(--panel-2); color:var(--signal); border:0.5px solid var(--signal);"><i class="ti ti-check"></i> Bulundu</button>
+      `;
+      screenEl.appendChild(bar);
+      document.getElementById('cb-tip').onclick = async () => {
+        const text = prompt('Ne gördünüz? Kısaca yazın:');
+        if (!text) return;
+        if (state.backendAvailable && state.token && a._fromApi) {
+          const result = await api.addTip(a.id, text);
+          if (!result.ok) { showToast(result.error || 'İpucu gönderilemedi.'); return; }
+          a.tips.unshift({ text: result.data.tip.text, time: 'az önce', by: result.data.tip.by });
+        } else {
+          a.tips.unshift({ text, time: 'az önce', by: state.user ? (state.user.ad + ' ' + state.user.soyad) : 'Siz' });
+        }
+        showToast('İpucunuz bildirim sahibine iletildi.');
+        renderDetail();
+      };
+      document.getElementById('cb-found').onclick = async () => {
+        if (state.backendAvailable && state.token && a._fromApi) {
+          const result = await api.markFound(a.id);
+          if (!result.ok) { showToast(result.error || 'İşlem başarısız.'); return; }
+        }
+        a.status = 'bulundu';
+        showToast('Bildirim kapatıldı, çevredeki bildirimler durduruldu.');
+        renderDetail();
+      };
+    }
+  }
+
+  function renderReport(){
+    if (state.reportStep === 1) {
+      const tiles = Object.entries(CATS).map(([key, c]) => `
+        <div class="cat-tile ${state.reportCat===key?'selected':''}" data-cat="${key}">
+          <div class="cat-icon-lg"><i class="ti ${c.icon}"></i></div>
+          <div class="cat-name">${c.name}</div>
+        </div>`).join('');
+      screenEl.innerHTML = `
+        <div class="topbar"><div class="brand"><span class="dot" style="background:var(--danger);box-shadow:0 0 0 3px var(--danger-dim);"></span><span class="name">Yeni bildirim</span></div><div class="icon-btn" data-go-home="1"><i class="ti ti-home-2"></i></div></div>
+        <h1 class="page-title">Ne kayboldu?</h1>
+        <p class="page-sub">Kategoriye göre çevrenizdeki doğru kişilere ulaşırız.</p>
+        <div class="cat-grid">${tiles}</div>
+        <div class="action-bar"><button class="btn-primary" id="cb-next1" ${state.reportCat?'':'disabled'}>Devam et</button></div>
+      `;
+      screenEl.querySelectorAll('[data-cat]').forEach(el => {
+        el.onclick = () => { state.reportCat = el.dataset.cat; state.reportDetails = {}; state.reportTitleDraft = ''; state.reportDescDraft = ''; renderReport(); };
+      });
+      const nextBtn = document.getElementById('cb-next1');
+      if (state.reportCat) nextBtn.onclick = () => { state.reportStep = 2; renderReport(); };
+      return;
+    }
+
+    if (state.reportStep === 2) {
+      const cat = CATS[state.reportCat];
+      const dynamicFieldsHtml = cat.fields.map(f => {
+        const currentVal = state.reportDetails[f.key] || '';
+        if (f.type === 'select') {
+          const opts = f.options.map(o => `<option value="${esc(o)}" ${o === currentVal ? 'selected' : ''}>${esc(o)}</option>`).join('');
+          return `<div class="field-group"><label class="field-label">${esc(f.label)}</label><select class="field-select" data-field="${f.key}">${opts}</select></div>`;
+        }
+        return `<div class="field-group"><label class="field-label">${esc(f.label)}</label><input class="field-input" data-field="${f.key}" placeholder="${esc(f.placeholder||'')}" value="${esc(currentVal)}" /></div>`;
+      }).join('');
+
+      screenEl.innerHTML = `
+        <div class="topbar"><div class="icon-btn" id="cb-back2"><i class="ti ti-arrow-left"></i></div><div class="icon-btn" data-go-home="1"><i class="ti ti-home-2"></i></div></div>
+        <h1 class="page-title">${cat.name} detayları</h1>
+        <p class="page-sub">Ne kadar net olursa, tanıma ihtimali o kadar artar.</p>
+        <div class="field-group">
+          <label class="field-label">Başlık</label>
+          <input class="field-input" id="cb-title" placeholder="Örn. Kırmızı şehir bisikleti çalındı" value="${esc(state.reportTitleDraft || '')}" />
+        </div>
+        ${dynamicFieldsHtml}
+        <div class="field-group">
+          <label class="field-label">Açıklama</label>
+          <textarea class="field-textarea" id="cb-desc" placeholder="Ne zaman, nerede kayboldu, ek ayrıntılar...">${esc(state.reportDescDraft || '')}</textarea>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Fotoğraf</label>
+          <input type="file" accept="image/*" id="cb-photo-input" style="display:none;" />
+          <div class="photo-add" id="cb-photo-add">
+            ${state.reportPhotoDataUrl
+              ? `<img src="${state.reportPhotoDataUrl}" style="width:100%; height:100%; object-fit:cover; border-radius:11px;" />`
+              : `<i class="ti ti-camera-plus" style="font-size:20px;"></i>Fotoğraf ekle`}
+          </div>
+          ${state.reportPhotoDataUrl ? `<div class="btn-link" id="cb-photo-remove" style="padding-top:8px;">Fotoğrafı kaldır</div>` : ''}
+        </div>
+        <div class="field-group">
+          <label class="field-label">Konum</label>
+          <div class="loc-box"><i class="ti ti-map-pin"></i> Mevcut konumunuz kullanılacak (izin verirsen)</div>
+        </div>
+        <div class="action-bar"><button class="btn-primary" id="cb-next2">Önizlemeye geç</button></div>
+      `;
+      document.getElementById('cb-back2').onclick = () => { state.reportStep = 1; renderReport(); };
+
+      // Her tuş vuruşunda state'e yaz — fotoğraf eklenip ekran yeniden çizilse bile veriler kaybolmasın
+      document.getElementById('cb-title').oninput = (e) => { state.reportTitleDraft = e.target.value; };
+      document.getElementById('cb-desc').oninput = (e) => { state.reportDescDraft = e.target.value; };
+      screenEl.querySelectorAll('[data-field]').forEach(el => {
+        const evt = el.tagName === 'SELECT' ? 'onchange' : 'oninput';
+        el[evt] = (e) => { state.reportDetails[el.dataset.field] = e.target.value; };
+      });
+
+      document.getElementById('cb-photo-add').onclick = () => document.getElementById('cb-photo-input').click();
+      document.getElementById('cb-photo-input').onchange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        if (!file.type.startsWith('image/')) { showToast('Lütfen bir resim dosyası seç.'); return; }
+        showToast('Fotoğraf işleniyor...');
+        try {
+          state.reportPhotoDataUrl = await compressImageFile(file);
+          renderReport();
+        } catch {
+          showToast('Fotoğraf işlenemedi, tekrar dene.');
+        }
+      };
+      const removeBtn = document.getElementById('cb-photo-remove');
+      if (removeBtn) removeBtn.onclick = () => { state.reportPhotoDataUrl = null; renderReport(); };
+      document.getElementById('cb-next2').onclick = () => {
+        state.reportTitle = (document.getElementById('cb-title').value || '').trim() || 'Başlıksız bildirim';
+        state.reportDesc = (document.getElementById('cb-desc').value || '').trim() || 'Açıklama eklenmedi.';
+        screenEl.querySelectorAll('[data-field]').forEach(el => {
+          state.reportDetails[el.dataset.field] = el.value.trim() || '—';
+        });
+        state.reportStep = 3;
+        renderReport();
+      };
+      return;
+    }
+
+    if (state.reportStep === 3) {
+      const cat = CATS[state.reportCat];
+      newCaptcha();
+      const chipsPreview = cat.fields.map(f => `<div class="detail-chip"><div class="dc-label">${esc(f.label)}</div><div class="dc-value">${esc(state.reportDetails[f.key] || '—')}</div></div>`).join('');
+      screenEl.innerHTML = `
+        <div class="topbar"><div class="icon-btn" id="cb-back3"><i class="ti ti-arrow-left"></i></div><div class="icon-btn" data-go-home="1"><i class="ti ti-home-2"></i></div></div>
+        <h1 class="page-title">Gönderilmeye hazır</h1>
+        <p class="page-sub">Yayınlandığında, çevrenizdeki kullanıcılara kademeli olarak bildirim gönderilecek.</p>
+        <div style="padding:0 20px;">
+          ${state.reportPhotoDataUrl ? `<img src="${state.reportPhotoDataUrl}" style="width:100%; height:160px; object-fit:cover; border-radius:14px; margin-bottom:12px;" />` : ''}
+          <div class="alert-card" style="cursor:default;">
+            <div class="ac-top">
+              <div class="ac-icon ${cat.cls}"><i class="ti ${cat.icon}"></i></div>
+              <div class="ac-body">
+                <div class="ac-title">${esc(state.reportTitle)}</div>
+                <div class="ac-meta"><span>Şimdi</span><span class="sep">·</span><span>0.0 km</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="section-label" style="padding-top:18px;">${cat.name} bilgileri</div>
+        <div class="detail-chip-wrap">${chipsPreview}</div>
+        <div class="section-label">Yarıçap zamanlaması</div>
+        <div class="timeline">
+          ${STAGES.map((s,i)=>`
+          <div class="tl-row">
+            <div class="tl-marker-col"><div class="tl-dot ${i===0?'now':''}"></div>${i<STAGES.length-1?'<div class="tl-line"></div>':''}</div>
+            <div class="tl-content"><div class="tl-title">${s.label}</div><div class="tl-sub">${s.minutes===0?'Anında':s.minutes+' dk sonra'}</div></div>
+          </div>`).join('')}
+        </div>
+        <div class="section-label">Güvenlik doğrulaması</div>
+        <div class="field-group">
+          ${captchaHtml('cb-report-captcha','cb-report-captcha-refresh')}
+          <div class="field-error" id="cb-report-err">Doğrulama hatalı, tekrar dene.</div>
+        </div>
+        <div class="action-bar"><button class="btn-primary btn-danger" id="cb-publish"><i class="ti ti-broadcast"></i> Bildirimi yayınla</button></div>
+      `;
+      document.getElementById('cb-back3').onclick = () => { state.reportStep = 2; renderReport(); };
+      document.getElementById('cb-report-captcha-refresh').onclick = () => { newCaptcha(); renderReport(); };
+      document.getElementById('cb-publish').onclick = async () => {
+        const val = Number(document.getElementById('cb-report-captcha').value);
+        const err = document.getElementById('cb-report-err');
+        if (val !== state.captcha.answer) {
+          err.classList.add('show');
+          newCaptcha(); renderReport();
+          return;
+        }
+        const publishBtn = document.getElementById('cb-publish');
+
+        if (state.backendAvailable && state.token) {
+          publishBtn.disabled = true;
+          publishBtn.textContent = 'Yayınlanıyor...';
+          if (state.myLat === null) {
+            const loc = await getMyLocation();
+            if (loc) { state.myLat = loc.lat; state.myLng = loc.lng; }
+          }
+          const result = await api.createAlert({
+            category: state.reportCat, title: state.reportTitle, description: state.reportDesc,
+            details: Object.assign({}, state.reportDetails),
+            lat: state.myLat, lng: state.myLng,
+            photoDataUrl: state.reportPhotoDataUrl || null,
+          });
+          if (!result.ok) {
+            err.textContent = result.error || 'Bildirim yayınlanamadı.';
+            err.classList.add('show');
+            publishBtn.disabled = false;
+            publishBtn.textContent = 'Bildirimi yayınla';
+            newCaptcha(); renderReport();
+            return;
+          }
+          const newAlert = mapApiAlert(result.data.alert);
+          state.alerts.unshift(newAlert);
+          state.reportStep = 1; state.reportCat = null; state.reportDetails = {}; state.reportPhotoDataUrl = null;
+          state.reportTitleDraft = ''; state.reportDescDraft = '';
+          state.detailId = newAlert.id;
+          go('detail');
+          showToast('Bildiriminiz veritabanına kaydedildi ve yayınlandı.');
+          return;
+        }
+
+        // Backend yoksa: yerel demo modu (öncekiyle aynı davranış)
+        const id = state.nextId++;
+        const newAlert = {
+          id, cat: state.reportCat, title: state.reportTitle, desc: state.reportDesc,
+          details: Object.assign({}, state.reportDetails),
+          photoDataUrl: state.reportPhotoDataUrl || null,
+          distance: null, stageIdx: 0, elapsedMin: 0, status: 'aktif', tips: [],
+        };
+        state.alerts.unshift(newAlert);
+        state.reportStep = 1; state.reportCat = null; state.reportDetails = {}; state.reportPhotoDataUrl = null;
+        state.reportTitleDraft = ''; state.reportDescDraft = '';
+        state.detailId = id;
+        startSim(id);
+        go('detail');
+        showToast('Bildiriminiz yayınlandı (yerel demo modu): 500m çevresine ulaşıldı.');
+      };
+      return;
+    }
+  }
+
+  function startSim(id){
+    let stage = 0;
+    const timer = setInterval(() => {
+      const a = state.alerts.find(x => x.id === id);
+      if (!a || a.status !== 'aktif') { clearInterval(timer); return; }
+      stage++;
+      if (stage >= STAGES.length) { clearInterval(timer); return; }
+      a.stageIdx = stage;
+      a.elapsedMin = STAGES[stage].minutes;
+      showToast('Bildiriminiz ' + STAGES[stage].label + ' çapına ulaştı.');
+      if (state.nav === 'detail' && state.detailId === id) renderDetail();
+      if (state.nav === 'feed') renderFeed();
+    }, 7000);
+  }
+
+  function renderMap(){
+    const pinsData = [
+      { x: 50, y: 52, cat: 'kisi' },
+      { x: 30, y: 30, cat: 'bisiklet' },
+      { x: 68, y: 24, cat: 'evcil' },
+      { x: 78, y: 60, cat: 'arac' },
+      { x: 22, y: 70, cat: 'bisiklet' },
+    ];
+    const pins = pinsData.map((p) => `<div class="map-pin ac-icon ${CATS[p.cat].cls}" style="left:${p.x}%; top:${p.y}%; width:28px; height:28px;"><i class="ti ${CATS[p.cat].icon}" style="font-size:13px;"></i></div>`).join('');
+    screenEl.innerHTML = `
+      <div class="topbar"><div class="brand" data-go-home="1" style="cursor:pointer;"><span class="dot"></span><span class="name">Çember</span></div><div class="icon-btn"><i class="ti ti-adjustments"></i></div></div>
+      <h1 class="page-title">Harita</h1>
+      <p class="page-sub">Aktif bildirimler ve genişleyen yarıçapları çevrenizde.</p>
+      <div class="map-mock">
+        ${[1,2,3,4].map(r => `<div class="radar-ring" style="width:${r*70}px;height:${r*70}px; border-color: rgba(87,217,163,${0.35 - r*0.06});"></div>`).join('')}
+        <div class="map-you"></div>
+        ${pins}
+      </div>
+      <div class="section-label">Sizden en yakın</div>
+      <div class="card-list" style="padding-bottom:100px;">
+        ${state.alerts.filter(a=>a.status==='aktif').slice(0,3).map(a => `
+          <div class="alert-card" data-open="${a.id}">
+            <div class="ac-top">
+              <div class="ac-icon ${CATS[a.cat].cls}"><i class="ti ${CATS[a.cat].icon}"></i></div>
+              <div class="ac-body"><div class="ac-title">${esc(a.title)}</div><div class="ac-meta"><span>${a.distance === null ? 'mesafe bilinmiyor' : a.distance + ' km'}</span></div></div>
+            </div>
+          </div>`).join('')}
+      </div>
+    `;
+    screenEl.querySelectorAll('[data-open]').forEach(el => {
+      el.onclick = () => { state.detailId = Number(el.dataset.open); go('detail'); };
+    });
+  }
+
+  function renderNotifs(){
+    const items = [
+      { icon: 'ti-radar-2', text: '"Kırmızı şehir bisikleti çalındı" bildirimi 5 km çapına ulaştı.', time: '2 dk önce' },
+      { icon: 'ti-message-circle-2', text: 'Bir kullanıcı "Kahverengi golden retriever" bildirimine ipucu ekledi.', time: '18 dk önce' },
+      { icon: 'ti-circle-check', text: '"Mor dağ bisikleti" bildirimi sahibi tarafından bulundu olarak işaretlendi.', time: '1 sa önce' },
+      { icon: 'ti-broadcast', text: 'Yakınınızda yeni bir araç çalıntı bildirimi yayınlandı.', time: '2 sa önce' },
+      { icon: 'ti-radar-2', text: '"Gri Fiat Egea" bildirimi 2 km çapına ulaştı.', time: '3 sa önce' },
+    ];
+    screenEl.innerHTML = `
+      <div class="topbar"><div class="brand" data-go-home="1" style="cursor:pointer;"><span class="dot"></span><span class="name">Çember</span></div><div></div></div>
+      <h1 class="page-title">Bildirimler</h1>
+      <p class="page-sub">Takip ettiğiniz kategorilerdeki gelişmeler.</p>
+      ${items.map(n => `
+      <div class="notif-item">
+        <div class="notif-icon"><i class="ti ${n.icon}"></i></div>
+        <div><div class="notif-text">${n.text}</div><div class="notif-time">${n.time}</div></div>
+      </div>`).join('')}
+      <div style="height:90px;"></div>
+    `;
+  }
+
+  function renderProfile(){
+    const rows = Object.entries(CATS).map(([key,c]) => `
+      <div class="settings-row">
+        <div class="settings-left"><i class="ti ${c.icon}"></i>
+          <div><div class="settings-title">${c.name}</div><div class="settings-sub">Bu kategoride bildirim al</div></div>
+        </div>
+        <div class="toggle ${state.notifCatsOn[key]?'on':''}" data-toggle="${key}"><div class="knob"></div></div>
+      </div>`).join('');
+
+    const fullName = state.user ? (state.user.ad + ' ' + state.user.soyad).trim() : 'Misafir';
+    const emailLine = state.user ? state.user.email : '';
+
+    screenEl.innerHTML = `
+      <div class="topbar"><div class="brand" data-go-home="1" style="cursor:pointer;"><span class="dot"></span><span class="name">Çember</span></div><div></div></div>
+      <div class="avatar-lg"><i class="ti ti-user"></i></div>
+      <div class="center-text" style="padding-bottom:10px;"><div style="font-size:17px;font-weight:600;">${esc(fullName)}</div><div style="font-size:13px;color:var(--text-dim);">${esc(emailLine)}</div></div>
+      <div class="section-label" style="padding-top:16px;">Bildirim kategorileri</div>
+      ${rows}
+      <div class="section-label" style="padding-top:20px;">Maksimum bildirim çapı</div>
+      <div style="padding:0 20px 8px;">
+        <input type="range" id="cb-radius" min="1" max="20" value="${state.maxRadius}" style="width:100%; accent-color: var(--signal);" />
+        <div style="display:flex; justify-content:space-between; font-size:11.5px; color:var(--text-faint); margin-top:4px;">
+          <span>1 km</span><span id="cb-radius-val" class="mono" style="color:var(--text);">${state.maxRadius} km</span><span>20 km</span>
+        </div>
+      </div>
+      <div class="section-label" style="padding-top:16px;">Hesap</div>
+      <div class="settings-row"><div class="settings-left"><i class="ti ti-shield-check"></i><div><div class="settings-title">Kimlik doğrulama</div><div class="settings-sub">Doğrulandı</div></div></div></div>
+      <div class="settings-row"><div class="settings-left"><i class="ti ti-history"></i><div><div class="settings-title">Bildirim geçmişim</div></div></div><i class="ti ti-chevron-right" style="color:var(--text-faint);"></i></div>
+      <div class="settings-row"><div class="settings-left"><i class="ti ti-lock"></i><div><div class="settings-title">Gizlilik ve konum ayarları</div></div></div><i class="ti ti-chevron-right" style="color:var(--text-faint);"></i></div>
+      <div class="settings-row" id="cb-logout" style="cursor:pointer;"><div class="settings-left"><i class="ti ti-logout" style="color:var(--danger);"></i><div><div class="settings-title" style="color:var(--danger);">Çıkış yap</div></div></div></div>
+      <div style="height:90px;"></div>
+    `;
+    screenEl.querySelectorAll('[data-toggle]').forEach(el => {
+      el.onclick = () => {
+        const key = el.dataset.toggle;
+        state.notifCatsOn[key] = !state.notifCatsOn[key];
+        renderProfile();
+      };
+    });
+    const radiusInput = document.getElementById('cb-radius');
+    radiusInput.oninput = () => {
+      state.maxRadius = radiusInput.value;
+      document.getElementById('cb-radius-val').textContent = state.maxRadius + ' km';
+    };
+    document.getElementById('cb-logout').onclick = logout;
+  }
+
+  function go(nav){
+    state.nav = nav;
+    document.querySelectorAll('.nav-item').forEach(el => {
+      el.classList.toggle('active', el.dataset.nav === nav);
+    });
+    if (nav === 'feed') renderFeed();
+    else if (nav === 'map') renderMap();
+    else if (nav === 'report') { state.reportStep = 1; state.reportCat = null; state.reportPhotoDataUrl = null; state.reportTitleDraft = ''; state.reportDescDraft = ''; state.reportDetails = {}; renderReport(); }
+    else if (nav === 'notifs') renderNotifs();
+    else if (nav === 'profile') renderProfile();
+    else if (nav === 'detail') renderDetail();
+    screenEl.scrollTop = 0;
+  }
+
+  document.querySelectorAll('.nav-item').forEach(el => {
+    el.onclick = () => {
+      if (!state.user) return;
+      go(el.dataset.nav);
+    };
+  });
+
+  // Her ekrandaki "Çember" logosuna / ana sayfa simgesine tıklanınca ana sayfaya dön.
+  // Delegasyonla çalışır, ekranlar yeniden çizildiğinde tekrar bağlamaya gerek kalmaz.
+  document.addEventListener('click', (e) => {
+    const homeEl = e.target.closest('[data-go-home]');
+    if (homeEl && state.user) go('feed');
+  });
+
+  async function init(){
+    navbarEl.style.display = 'none';
+    screenEl.innerHTML = `<div class="empty-state" style="padding-top:40vh;"><i class="ti ti-radar-2"></i><div>Bağlanılıyor...</div></div>`;
+
+    state.backendAvailable = await api.health();
+
+    if (state.backendAvailable) {
+      let savedToken = null;
+      try { savedToken = localStorage.getItem('cember_token'); } catch {}
+      if (savedToken) {
+        state.token = savedToken;
+        const meResult = await api.me();
+        if (meResult.ok) {
+          state.user = meResult.data.user;
+          await loadAlertsFromApi();
+          navbarEl.style.display = '';
+          return go('feed');
+        }
+        // token geçersiz/süresi dolmuş
+        state.token = null;
+        try { localStorage.removeItem('cember_token'); } catch {}
+      }
+    } else {
+      startBackendPolling();
+    }
+    renderAuth();
+  }
+
+  // Backend başlangıçta kapalıysa arka planda periyodik olarak kontrol eder;
+  // kullanıcı sunucuyu sonradan başlatırsa sayfayı yenilemeye gerek kalmadan bağlanır.
+  let backendPollTimer = null;
+  function startBackendPolling(){
+    if (backendPollTimer) return;
+    backendPollTimer = setInterval(async () => {
+      if (state.user || state.backendAvailable) {
+        clearInterval(backendPollTimer);
+        backendPollTimer = null;
+        return;
+      }
+      const ok = await api.health();
+      if (ok) {
+        state.backendAvailable = true;
+        clearInterval(backendPollTimer);
+        backendPollTimer = null;
+        showToast('Sunucu bulundu, bağlanıldı.');
+        if (state.nav === 'auth') renderAuth();
+      }
+    }, 4000);
+  }
+
+  init();
+
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('service-worker.js').catch(() => {});
+    });
+  }
+})();
+</script>
+</body>
+</html>
