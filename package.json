@@ -2,11 +2,11 @@
   "name": "cember-backend",
   "version": "4.0.0",
   "description": "Çember API - PostgreSQL (pg) ile gerçek, kalıcı veritabanlı backend",
-  "main": "src/server.js",
-  "scripts": {
-    "start": "node src/server.js",
-    "seed": "node src/seed.js"
-  },
+"main": "server.js",
+"scripts": {
+    "start": "node server.js",
+    "seed": "node seed.js"
+},
   "engines": {
     "node": ">=18.0.0"
   },
