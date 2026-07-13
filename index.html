@@ -404,7 +404,7 @@
   const api = {
     async health() {
       try {
-        const res = await fetch(API_BASE_URL + '/api/health', { signal: AbortSignal.timeout(2000) });
+        const res = await fetch(API_BASE_URL + '/api/health', { signal: AbortSignal.timeout(60000) });
         return res.ok;
       } catch { return false; }
     },
