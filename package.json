@@ -1,7 +1,7 @@
 {
   "name": "cember-backend",
-  "version": "3.0.0",
-  "description": "Çember API - better-sqlite3 (kuruluysa) veya Node'un yerleşik SQLite'ı ile çalışan gerçek veritabanlı backend",
+  "version": "4.0.0",
+  "description": "Çember API - PostgreSQL (pg) ile gerçek, kalıcı veritabanlı backend",
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
@@ -11,6 +11,6 @@
     "node": ">=18.0.0"
   },
   "dependencies": {
-    "better-sqlite3": "^11.3.0"
+    "pg": "^8.13.0"
   }
 }
