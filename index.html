@@ -401,10 +401,22 @@
   // ---------- Gerçek API katmanı ----------
   // Backend ayaktaysa gerçek isteklerde bulunur; ulaşılamıyorsa null döner ve
   // uygulama otomatik olarak yerel demo moduna düşer (bkz. state.backendAvailable).
+
+  // AbortSignal.timeout() eski Safari/iOS sürümlerinde (16'dan önce) yok — çağrıldığında
+  // anında hata fırlatıp health() 'i yanlışlıkla "sunucu yok" sandırıyordu. Bunun yerine
+  // AbortController + setTimeout kullanıyoruz; bu ikisi çok daha eski tarayıcılarda bile var.
+  function fetchWithTimeout(url, opts = {}, timeoutMs = 60000) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    return fetch(url, { ...opts, signal: controller.signal }).finally(() => clearTimeout(timer));
+  }
+
   const api = {
     async health() {
       try {
-        const res = await fetch(API_BASE_URL + '/api/health', { signal: AbortSignal.timeout(60000) });
+        // Render gibi ücretsiz planlarda sunucu "uykuda" olabilir ve uyanması
+        // 50 saniyeye kadar sürebilir — bu yüzden kısa bir timeout kullanmıyoruz.
+        const res = await fetchWithTimeout(API_BASE_URL + '/api/health', {}, 60000);
         return res.ok;
       } catch { return false; }
     },
@@ -412,7 +424,7 @@
       try {
         const headers = { 'Content-Type': 'application/json', ...(opts.headers || {}) };
         if (state.token) headers['Authorization'] = 'Bearer ' + state.token;
-        const res = await fetch(API_BASE_URL + path, { ...opts, headers });
+        const res = await fetchWithTimeout(API_BASE_URL + path, { ...opts, headers }, 60000);
         const data = await res.json().catch(() => ({}));
         if (!res.ok) return { ok: false, status: res.status, error: data.error || 'Bilinmeyen hata' };
         return { ok: true, data };
@@ -428,6 +440,10 @@
       return this.request('/api/alerts' + q);
     },
     createAlert(body) { return this.request('/api/alerts', { method: 'POST', body: JSON.stringify(body) }); },
+    getAlert(id, lat, lng) {
+      const q = (typeof lat === 'number' && typeof lng === 'number') ? `?lat=${lat}&lng=${lng}` : '';
+      return this.request(`/api/alerts/${id}` + q);
+    },
     addTip(id, text) { return this.request(`/api/alerts/${id}/tips`, { method: 'POST', body: JSON.stringify({ text }) }); },
     markFound(id) { return this.request(`/api/alerts/${id}/found`, { method: 'PATCH' }); },
   };
@@ -460,7 +476,7 @@
       details: a.details, distance: (typeof a.distanceKm === 'number') ? a.distanceKm : null,
       photoDataUrl: a.photoDataUrl || null,
       stageIdx: a.stageIdx, elapsedMin: a.elapsedMinutes,
-      status: a.status, tips: [], _fromApi: true,
+      status: a.status, tips: [], tipCount: a.tipCount || 0, _fromApi: true,
     };
   }
 
@@ -1163,22 +1179,36 @@
   }
 
   function renderNotifs(){
-    const items = [
-      { icon: 'ti-radar-2', text: '"Kırmızı şehir bisikleti çalındı" bildirimi 5 km çapına ulaştı.', time: '2 dk önce' },
-      { icon: 'ti-message-circle-2', text: 'Bir kullanıcı "Kahverengi golden retriever" bildirimine ipucu ekledi.', time: '18 dk önce' },
-      { icon: 'ti-circle-check', text: '"Mor dağ bisikleti" bildirimi sahibi tarafından bulundu olarak işaretlendi.', time: '1 sa önce' },
-      { icon: 'ti-broadcast', text: 'Yakınınızda yeni bir araç çalıntı bildirimi yayınlandı.', time: '2 sa önce' },
-      { icon: 'ti-radar-2', text: '"Gri Fiat Egea" bildirimi 2 km çapına ulaştı.', time: '3 sa önce' },
-    ];
+    let items = [];
+    if (state.backendAvailable) {
+      // Gerçek verilerden türetilmiş bir aktivite listesi: sahte/uydurma içerik değil.
+      state.alerts.forEach(a => {
+        const cat = CATS[a.cat];
+        if (a.status === 'bulundu') {
+          items.push({ icon: 'ti-circle-check', text: `"${a.title}" bulundu olarak işaretlendi.`, sortMin: a.elapsedMin });
+        } else {
+          items.push({ icon: 'ti-radar-2', text: `"${a.title}" bildirimi ${STAGES[a.stageIdx].label} çapına ulaştı.`, sortMin: a.elapsedMin });
+        }
+        const tipCount = (a.tips && a.tips.length) || a.tipCount || 0;
+        if (tipCount) {
+          items.push({ icon: 'ti-message-circle-2', text: `"${a.title}" bildirimine ${tipCount} ipucu eklendi.`, sortMin: a.elapsedMin });
+        }
+      });
+      items.sort((x, y) => x.sortMin - y.sortMin);
+      items = items.slice(0, 12).map(it => ({ ...it, time: fmtElapsed(it.sortMin) }));
+    }
+
+    const listHtml = items.length ? items.map(n => `
+      <div class="notif-item">
+        <div class="notif-icon"><i class="ti ${n.icon}"></i></div>
+        <div><div class="notif-text">${esc(n.text)}</div><div class="notif-time">${esc(n.time)}</div></div>
+      </div>`).join('') : `<div class="empty-state"><i class="ti ti-bell-off"></i><div>${state.backendAvailable ? 'Henüz bir aktivite yok.' : 'Bildirimler yalnızca gerçek sunucuya bağlıyken gösterilir (şu an yerel demo modundasın).'}</div></div>`;
+
     screenEl.innerHTML = `
       <div class="topbar"><div class="brand" data-go-home="1" style="cursor:pointer;"><span class="dot"></span><span class="name">Çember</span></div><div></div></div>
       <h1 class="page-title">Bildirimler</h1>
       <p class="page-sub">Takip ettiğiniz kategorilerdeki gelişmeler.</p>
-      ${items.map(n => `
-      <div class="notif-item">
-        <div class="notif-icon"><i class="ti ${n.icon}"></i></div>
-        <div><div class="notif-text">${n.text}</div><div class="notif-time">${n.time}</div></div>
-      </div>`).join('')}
+      ${listHtml}
       <div style="height:90px;"></div>
     `;
   }
@@ -1235,13 +1265,42 @@
     document.querySelectorAll('.nav-item').forEach(el => {
       el.classList.toggle('active', el.dataset.nav === nav);
     });
-    if (nav === 'feed') renderFeed();
+    if (nav === 'feed') { renderFeed(); refreshFeedFromApi(); }
     else if (nav === 'map') renderMap();
     else if (nav === 'report') { state.reportStep = 1; state.reportCat = null; state.reportPhotoDataUrl = null; state.reportTitleDraft = ''; state.reportDescDraft = ''; state.reportDetails = {}; renderReport(); }
     else if (nav === 'notifs') renderNotifs();
     else if (nav === 'profile') renderProfile();
-    else if (nav === 'detail') renderDetail();
+    else if (nav === 'detail') { renderDetail(); refreshDetailFromApi(state.detailId); }
     screenEl.scrollTop = 0;
+  }
+
+  // Ana sayfaya her girişte sunucudan taze veri çeker (yarıçap aşaması, yeni bildirimler,
+  // "bulundu" durumları vs. güncel kalsın diye). Önce önbellekteki veriyle hemen gösterir.
+  async function refreshFeedFromApi(){
+    if (!state.backendAvailable) return;
+    await loadAlertsFromApi();
+    if (state.nav === 'feed') renderFeed();
+  }
+
+  // Detay ekranı önce yerel (önbellekteki) veriyle hemen açılır, ardından sunucudan
+  // taze veri (özellikle başkalarının eklediği ipuçları) çekilip ekran güncellenir.
+  async function refreshDetailFromApi(id){
+    const a = state.alerts.find(x => x.id === id);
+    if (!a || !a._fromApi || !state.backendAvailable) return;
+    const result = await api.getAlert(id, state.myLat, state.myLng);
+    if (!result.ok) return;
+    Object.assign(a, {
+      title: result.data.alert.title,
+      desc: result.data.alert.description,
+      details: result.data.alert.details,
+      photoDataUrl: result.data.alert.photoDataUrl,
+      status: result.data.alert.status,
+      stageIdx: result.data.alert.stageIdx,
+      elapsedMin: result.data.alert.elapsedMinutes,
+      distance: (typeof result.data.alert.distanceKm === 'number') ? result.data.alert.distanceKm : null,
+      tips: result.data.tips.map(t => ({ text: t.text, time: fmtElapsed(Math.max(0, Math.floor((Date.now() - new Date(t.createdAt).getTime())/60000))), by: t.by })),
+    });
+    if (state.nav === 'detail' && state.detailId === id) renderDetail();
   }
 
   document.querySelectorAll('.nav-item').forEach(el => {
@@ -1260,7 +1319,7 @@
 
   async function init(){
     navbarEl.style.display = 'none';
-    screenEl.innerHTML = `<div class="empty-state" style="padding-top:40vh;"><i class="ti ti-radar-2"></i><div>Bağlanılıyor...</div></div>`;
+    screenEl.innerHTML = `<div class="empty-state" style="padding-top:35vh;"><i class="ti ti-radar-2"></i><div>Bağlanılıyor...<br><span style="font-size:11.5px;">Sunucu uykudaysa uyanması biraz sürebilir (~1 dk)</span></div></div>`;
 
     state.backendAvailable = await api.health();
 

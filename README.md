@@ -1,33 +1,57 @@
-# Çember API
+# Çember — kayıp/çalıntı bildirim ağı
 
-Gerçek, dosya tabanlı SQLite veritabanı + kendi yazdığım JWT-benzeri kimlik doğrulama +
-hız sınırlama içeren bir backend. Coğrafi mesafe hesabı ve fotoğraf yükleme desteği var.
+Gerçek, kalıcı **PostgreSQL** veritabanı + kendi yazdığım JWT-benzeri kimlik doğrulama +
+hız sınırlama içeren bir uygulama. Aynı sunucu hem API'yi hem de arayüzü (`index.html`) servis eder.
 
-## İki çalışma modu
+## Yerelde çalıştırmak için
 
-**A) `npm install` ile (önerilen — better-sqlite3 kullanır)**
-```bash
-cd backend
-npm install
-npm run seed     # opsiyonel: demo kullanıcı + örnek bildirimler
-npm start        # http://localhost:3000
-```
+1. Bir PostgreSQL veritabanına ihtiyacın var (yerel kurulum ya da ücretsiz bulut Postgres — aşağıya bak).
+2. Bağımlılıkları kur:
+   ```bash
+   npm install
+   ```
+3. Ortam değişkenlerini ayarla (`.env` dosyası kullanmıyoruz, doğrudan terminalde ayarla veya barındırma panelinde gir):
+   - `DATABASE_URL` → `postgres://kullanici:sifre@host:5432/veritabani`
+   - `JWT_SECRET` → rastgele uzun bir metin
+4. (İsteğe bağlı) örnek veriyle başlat:
+   ```bash
+   npm run seed
+   ```
+5. Sunucuyu başlat:
+   ```bash
+   npm start
+   ```
+6. Tarayıcıda `http://localhost:3000` adresini aç.
 
-**B) `npm install` yapmadan (Node'un yerleşik SQLite'ı ile, otomatik düşer)**
-```bash
-cd backend
-node src/seed.js   # opsiyonel
-node src/server.js
-```
-Bu modda Node 22.5+ gerekir (`node --version` ile kontrol et). `node:sqlite` hâlâ deneysel
-bir özelliktir; `npm install` yapabiliyorsan (A) seçeneği daha sağlamdır.
+## Ücretsiz, kalıcı barındırma: Leapcell
 
-Sunucu açılışta hangi motoru kullandığını loglar: `[db] motor: better-sqlite3 ...` veya
-`[db] motor: node:sqlite (yerleşik, better-sqlite3 kurulu değil) ...`
+2026 itibarıyla Railway/Fly.io/Koyeb gibi platformlar artık ya ücretli ya da yeni kayıtlara kapalı.
+**Leapcell.io** şu an kredi kartı istemeyen ve gerçekten kalıcı, ücretsiz bir PostgreSQL sunan
+platformlardan biri. Adımlar:
 
-Demo hesap (seed çalıştırdıysan): `demo@cember.app` / `sifre1234`
+1. **leapcell.io**'da ücretsiz hesap oluştur
+2. Panelde **"Create Database"** → PostgreSQL seç, bir isim ver, bölge seç
+3. Oluşan veritabanının bağlantı bilgilerini (host, port, kullanıcı adı, şifre, veritabanı adı) not al
+   - Bunlardan şu formatta bir `DATABASE_URL` oluştur:
+     `postgres://KULLANICI:SIFRE@HOST:5432/VERITABANI?sslmode=require`
+4. Bu projeyi GitHub'a yükle (bkz. aşağıdaki "GitHub'a yükleme" bölümü)
+5. Leapcell panelinde **"Create Service"** → GitHub reposunu seç
+6. Leapcell otomatik olarak `npm install` + `npm start` komutlarını algılayacak (bizim `package.json`
+   zaten repo kökünde olduğu için ekstra "root directory" ayarına gerek yok)
+7. **Environment Variables** kısmına ekle:
+   - `DATABASE_URL` → 3. adımdaki bağlantı dizesi
+   - `JWT_SECRET` → rastgele uzun bir metin
+8. **Submit/Deploy** — birkaç dakika içinde Leapcell sana bir adres verecek (örn. `senin-projen.leapcell.dev`)
+9. O adresi tarayıcıda aç — kayıt ol, bildirim oluştur, sonra "Redeploy" yapıp verinin hâlâ orada olduğunu doğrula
 
-Veritabanı `backend/data/cember.db` dosyasında saklanır.
+## GitHub'a yükleme (git komutu kullanmadan, tarayıcıdan)
+
+1. github.com'da yeni bir repo oluştur (Public, README/.gitignore/license eklemeden)
+2. Repo sayfasında **"uploading an existing file"** linkine tıkla
+3. Bu klasördeki **her şeyi** sürükleyip bırak: `index.html`, `manifest.json`, `service-worker.js`,
+   `icons/`, `src/`, `package.json`
+   - `node_modules/` klasörü varsa **yükleme**
+4. "Commit changes"
 
 ## Uçlar (endpoints)
 
@@ -36,58 +60,27 @@ Veritabanı `backend/data/cember.db` dosyasında saklanır.
 | POST | `/api/auth/register` | `{ad, soyad, email, password}` → `{token, user}` | Açık |
 | POST | `/api/auth/login` | `{email, password}` → `{token, user}` | Açık |
 | GET | `/api/auth/me` | Oturum sahibinin bilgisi | Bearer token |
-| GET | `/api/alerts?status=aktif&category=bisiklet&lat=..&lng=..` | Liste (lat/lng verilirse mesafeye göre sıralı) | Açık |
+| GET | `/api/alerts?status=aktif&category=bisiklet&lat=..&lng=..` | Liste (mesafeye göre sıralı) | Açık |
 | GET | `/api/alerts/:id?lat=..&lng=..` | Tek bildirim + ipuçları + mesafe | Açık |
 | POST | `/api/alerts` | `{category, title, description, details, lat, lng, photoDataUrl}` | Bearer token |
 | POST | `/api/alerts/:id/tips` | `{text}` | Bearer token |
 | PATCH | `/api/alerts/:id/found` | Sadece sahibi kapatabilir | Bearer token |
 
-## Coğrafi mesafe
+## Önemli dürüstlük notu
 
-`lat`/`lng` gönderirsen (bildirim oluştururken) ve listelerken kendi `lat`/`lng`'ini query
-parametresi olarak verirsen, `src/geo.js`'teki Haversine formülüyle gerçek kilometre mesafesi
-hesaplanır ve liste o mesafeye göre yakından uzağa sıralanır (`distanceKm` alanı). Koordinat
-yoksa `distanceKm: null` döner — frontend bunu "mesafe bilinmiyor" olarak gösterir.
-
-## Fotoğraf yükleme
-
-Frontend, seçilen fotoğrafı tarayıcıda (canvas ile) maks. 900px kenara küçültüp JPEG olarak
-sıkıştırır, sonra `photoDataUrl` (base64 data-URL) alanı olarak gönderir. Backend bunu
-`alerts.photo_data_url` sütununda saklar. Basit ve bağımlılıksız ama küçük ölçek içindir —
-ciddi bir üründe fotoğrafları S3/Cloudinary gibi bir nesne depolamaya yazıp veritabanına sadece
-URL'yi kaydetmek çok daha verimlidir (veritabanı şişmez, CDN'den hızlı servis edilir).
-
-## Kendi kendine test etmek istersen
-
-```bash
-curl http://localhost:3000/api/health
-
-curl -X POST http://localhost:3000/api/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{"ad":"Test","soyad":"Kullanici","email":"test@ornek.com","password":"sifre12345"}'
-
-# veritabanını doğrudan sorgula
-node -e "
-const {DatabaseSync} = require('node:sqlite');
-const db = new DatabaseSync('./data/cember.db');
-console.log(db.prepare('SELECT * FROM users').all());
-console.log(db.prepare('SELECT id,title,lat,lng,photo_data_url FROM alerts').all());
-"
-```
-(better-sqlite3 kurulduysa yukarıdaki node:sqlite yerine `require('better-sqlite3')` kullan.)
-
-## Frontend'i buna bağlama
-
-`../index.html` içindeki `API_BASE_URL` sabitini backend adresine ayarla (varsayılan
-`http://localhost:3000`). Uygulama açılışta `/api/health`'e bakar; sunucu ayaktaysa gerçek
-API'yi kullanır, kullanıcının konumunu ister (izin verirse mesafe hesabı çalışır), değilse
-otomatik olarak yerel demo moduna düşer.
+Bu PostgreSQL sürümünü, önceki SQLite sürümü gibi burada gerçek bir veritabanına bağlayıp
+uçtan uca çalıştırarak test edemedim — bu ortamda internet erişimim yok, bu yüzden `pg`
+paketini kuramadım ve gerçek bir Postgres sunucusuna bağlanamadım. Kod, node-postgres (`pg`)
+kütüphanesinin standart ve yaygın kullanılan desenlerini takip ediyor, ama SQLite sürümündeki
+gibi "gerçekten çalıştırıp doğruladım" diyemiyorum. İlk çalıştırmada bir hata alırsan tam hata
+mesajını paylaş, birlikte düzeltelim.
 
 ## Bilinçli olarak eksik bırakılanlar
 
-- **Push bildirimi** — sadece veritabanında aşama güncelleniyor, cihazlara bildirim gitmiyor (Firebase Cloud Messaging gerekir).
+- **Push bildirimi** — sadece veritabanında aşama güncelleniyor, cihazlara bildirim gitmiyor.
 - **E-posta/telefon doğrulama** — herkes rastgele bir e-postayla kayıt olabiliyor.
-- **Gerçek CAPTCHA** — reCAPTCHA/hCaptcha sunucu tarafı doğrulaması yok, sadece basit hız sınırlama var.
+- **Gerçek CAPTCHA** — reCAPTCHA/hCaptcha sunucu tarafı doğrulaması yok, sadece hız sınırlama var.
+- **Fotoğraf depolama** — fotoğraflar veritabanında base64 metin olarak saklanıyor; çok sayıda/büyük
+  fotoğraf, ücretsiz Postgres'in depolama kotasını (genelde birkaç yüz MB - 1GB) hızla doldurabilir.
+  Üretimde S3/Cloudinary gibi ayrı bir depolamaya geçmek gerekir.
 - **Token iptali** — token süresi dolana kadar geçerli, çalınırsa elle iptal edilemez.
-- **Fotoğraf depolama ölçeklenebilirliği** — base64 + SQLite küçük ölçek için yeterli, büyük kullanıcı sayısında obje depolamaya geçilmeli.
-- **HTTPS ve gerçek hosting** — Render, Railway, Fly.io gibi bir servise deploy edilmeli; şu an sadece `localhost`.
