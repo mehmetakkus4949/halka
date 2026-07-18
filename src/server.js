@@ -5,8 +5,9 @@ const fs = require('fs');
 const path = require('path');
 const { pool, initSchema } = require('./db');
 const { hashPassword, verifyPassword, signToken, verifyToken } = require('./auth-utils');
-const { STAGES, CATEGORIES, stageForElapsedMinutes } = require('./stages');
+const { getStages, CATEGORIES, stageForElapsedMinutes } = require('./stages');
 const { haversineKm } = require('./geo');
+const { findMissingRequiredField } = require('./category-fields');
 
 const PORT = process.env.PORT || 3000;
 const CORS_ORIGINS = (process.env.CORS_ORIGIN || '*').split(',').map(s => s.trim());
@@ -105,19 +106,20 @@ function elapsedMinutes(createdAt) {
 }
 
 function serializeAlert(row, tipCount, viewerLat, viewerLng) {
-  const distanceKm = haversineKm(viewerLat, viewerLng, row.lat, row.lng);
+  const distanceKm = haversineKm(viewerLat, viewerLng, row.lat, row.lng); // hassas değerle hesaplanır (sadece sunucu içinde)
   return {
     id: row.id,
     category: row.category,
     title: row.title,
     description: row.description,
     details: JSON.parse(row.details_json || '{}'),
-    lat: row.lat,
-    lng: row.lng,
+    // ÖNEMLİ: lat/lng kasıtlı olarak API yanıtına hiç dahil edilmiyor.
+    // Ağ isteklerini izleyerek (Network tab) birinin tam ev/kayıp adresini bulmasını
+    // önlemek için — sadece göreli mesafe (distanceKm) dışarı açılıyor, konumun kendisi değil.
     photoDataUrl: row.photo_data_url || null,
     status: row.status,
     stageIdx: row.stage_idx,
-    stageLabel: STAGES[row.stage_idx] ? STAGES[row.stage_idx].label : STAGES[0].label,
+    stageLabel: getStages(row.category)[row.stage_idx] ? getStages(row.category)[row.stage_idx].label : getStages(row.category)[0].label,
     elapsedMinutes: elapsedMinutes(row.created_at),
     distanceKm: distanceKm === null ? null : Math.round(distanceKm * 10) / 10,
     tipCount: tipCount || 0,
@@ -129,13 +131,13 @@ function serializeAlert(row, tipCount, viewerLat, viewerLng) {
 // ---------- yarıçap genişleme görevi ----------
 async function radiusTick() {
   try {
-    const result = await pool.query("SELECT id, created_at, stage_idx FROM alerts WHERE status = 'aktif'");
+    const result = await pool.query("SELECT id, category, created_at, stage_idx FROM alerts WHERE status = 'aktif'");
     for (const row of result.rows) {
       const elapsed = elapsedMinutes(row.created_at);
-      const correct = stageForElapsedMinutes(elapsed);
+      const correct = stageForElapsedMinutes(row.category, elapsed);
       if (correct !== row.stage_idx) {
         await pool.query('UPDATE alerts SET stage_idx = $1, updated_at = NOW() WHERE id = $2', [correct, row.id]);
-        console.log(`[yarıçap] bildirim #${row.id} -> aşama ${correct} (${elapsed} dk geçti)`);
+        console.log(`[yarıçap] bildirim #${row.id} (${row.category}) -> aşama ${correct} (${elapsed} dk geçti)`);
       }
     }
   } catch (err) {
@@ -252,6 +254,9 @@ async function handleCreateAlert(req, res, ip) {
   if (!CATEGORIES.includes(category)) return sendJson(res, 400, { error: 'Geçersiz kategori.' });
   if (!title || !title.trim()) return sendJson(res, 400, { error: 'Başlık gereklidir.' });
 
+  const missingFieldError = findMissingRequiredField(category, details);
+  if (missingFieldError) return sendJson(res, 400, { error: missingFieldError });
+
   let photo = null;
   if (photoDataUrl) {
     if (typeof photoDataUrl !== 'string' || !photoDataUrl.startsWith('data:image/')) {
@@ -283,8 +288,11 @@ async function handleAddTip(req, res, id, ip) {
   const body = await readJsonBody(req);
   if (!body.text || !body.text.trim()) return sendJson(res, 400, { error: 'İpucu metni boş olamaz.' });
 
-  const alertCheck = await pool.query('SELECT id FROM alerts WHERE id = $1', [id]);
+  const alertCheck = await pool.query('SELECT id, status FROM alerts WHERE id = $1', [id]);
   if (!alertCheck.rows[0]) return sendJson(res, 404, { error: 'Bildirim bulunamadı.' });
+  if (alertCheck.rows[0].status !== 'aktif') {
+    return sendJson(res, 409, { error: 'Bu bildirim zaten "bulundu" olarak kapatılmış, ipucu eklenemez.' });
+  }
 
   const result = await pool.query(
     'INSERT INTO tips (alert_id, user_id, text) VALUES ($1, $2, $3) RETURNING *',

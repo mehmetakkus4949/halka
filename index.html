@@ -352,40 +352,69 @@
 
 <script>
 (function(){
-  const STAGES = [
-    { label: '500 m', short: '500m', minutes: 0, size: 70 },
-    { label: '2 km', short: '2km', minutes: 15, size: 130 },
-    { label: '5 km', short: '5km', minutes: 60, size: 190 },
-    { label: '20 km', short: '20km', minutes: 180, size: 250 },
-  ];
+  // Kategoriye göre farklı yarıçap genişleme takvimi — backend'deki stages.js ile birebir
+  // aynı olmalı (kayıp kişi/hayvan bisiklete göre daha hızlı ve daha geniş yayılır).
+  const STAGES_BY_CATEGORY = {
+    bisiklet: [
+      { label: '500 m', short: '500m', minutes: 0, size: 70 },
+      { label: '2 km', short: '2km', minutes: 15, size: 130 },
+      { label: '5 km', short: '5km', minutes: 60, size: 190 },
+      { label: '20 km', short: '20km', minutes: 180, size: 250 },
+    ],
+    arac: [
+      { label: '500 m', short: '500m', minutes: 0, size: 70 },
+      { label: '2 km', short: '2km', minutes: 15, size: 130 },
+      { label: '5 km', short: '5km', minutes: 60, size: 190 },
+      { label: '20 km', short: '20km', minutes: 180, size: 250 },
+    ],
+    evcil: [
+      { label: '500 m', short: '500m', minutes: 0, size: 70 },
+      { label: '2 km', short: '2km', minutes: 10, size: 130 },
+      { label: '10 km', short: '10km', minutes: 45, size: 190 },
+      { label: '30 km', short: '30km', minutes: 120, size: 250 },
+    ],
+    kisi: [
+      { label: '1 km', short: '1km', minutes: 0, size: 70 },
+      { label: '5 km', short: '5km', minutes: 10, size: 130 },
+      { label: '20 km', short: '20km', minutes: 30, size: 190 },
+      { label: '50 km', short: '50km', minutes: 90, size: 250 },
+    ],
+  };
+  function stagesFor(cat) { return STAGES_BY_CATEGORY[cat] || STAGES_BY_CATEGORY.bisiklet; }
+  // Geriye dönük uyumluluk: kodun geri kalanında hâlâ "STAGES" adını kullanan yerler
+  // (yerel demo modu gibi) varsayılan olarak bisiklet takvimini kullanır.
+  const STAGES = STAGES_BY_CATEGORY.bisiklet;
 
   const CATS = {
     bisiklet: { icon: 'ti-bike', name: 'Bisiklet / motor', cls: 'bisiklet',
       fields: [
-        { key: 'marka', label: 'Marka / model', placeholder: 'Örn. Trek FX 2' },
-        { key: 'renk', label: 'Renk', placeholder: 'Örn. Kırmızı' },
+        { key: 'marka', label: 'Marka / model', placeholder: 'Örn. Trek FX 2', required: true },
+        { key: 'renk', label: 'Renk', placeholder: 'Örn. Kırmızı', required: true },
         { key: 'seri', label: 'Seri numarası (varsa)', placeholder: 'Çerçeve üzerinde olabilir' },
       ] },
     arac: { icon: 'ti-car', name: 'Araç', cls: 'arac',
       fields: [
-        { key: 'plaka', label: 'Plaka', placeholder: '35 ABC 123' },
-        { key: 'marka', label: 'Marka / model', placeholder: 'Örn. Fiat Egea' },
-        { key: 'renk', label: 'Renk', placeholder: 'Örn. Gri' },
+        { key: 'plaka', label: 'Plaka', placeholder: '35 ABC 123', required: true },
+        { key: 'marka', label: 'Marka / model', placeholder: 'Örn. Fiat Egea', required: true },
+        { key: 'renk', label: 'Renk', placeholder: 'Örn. Gri', required: true },
         { key: 'yil', label: 'Model yılı', placeholder: 'Örn. 2019' },
       ] },
     evcil: { icon: 'ti-paw', name: 'Evcil hayvan', cls: 'evcil',
       fields: [
-        { key: 'tur', label: 'Tür', type: 'select', options: ['Köpek','Kedi','Kuş','Diğer'] },
-        { key: 'isim', label: 'İsmi', placeholder: 'Örn. Zeki' },
+        { key: 'tur', label: 'Tür', type: 'select', options: ['Köpek','Kedi','Kuş','Diğer'], required: true },
+        { key: 'isim', label: 'İsmi', placeholder: 'Örn. Zeki', required: true },
         { key: 'cins', label: 'Cinsi (biliniyorsa)', placeholder: 'Örn. Golden retriever' },
-        { key: 'renk', label: 'Renk', placeholder: 'Örn. Kahverengi' },
+        { key: 'renk', label: 'Renk', placeholder: 'Örn. Kahverengi', required: true },
+        { key: 'mikroçip', label: 'Mikroçip no (varsa)', placeholder: 'Varsa veteriner kaydında yazar' },
+        { key: 'huy', label: 'Huyu', type: 'select', options: ['Sakin/yaklaşılabilir', 'Ürkek', 'Yabancıya tepkili'] },
       ] },
     kisi: { icon: 'ti-user-exclamation', name: 'Kişi', cls: 'kisi',
       fields: [
-        { key: 'yas', label: 'Yaklaşık yaş', placeholder: 'Örn. 7 yaşında' },
+        { key: 'yas', label: 'Yaklaşık yaş', placeholder: 'Örn. 7 yaşında', required: true },
         { key: 'boy', label: 'Boy (biliniyorsa)', placeholder: 'Örn. 160 cm' },
-        { key: 'kiyafet', label: 'Üzerindeki kıyafet', placeholder: 'Örn. Mavi mont, siyah pantolon' },
+        { key: 'kiyafet', label: 'Üzerindeki kıyafet', placeholder: 'Örn. Mavi mont, siyah pantolon', required: true },
         { key: 'ozellik', label: 'Ayırt edici özellik', placeholder: 'Örn. Gözlüklü' },
+        { key: 'saglik', label: 'Bilinmesi gereken sağlık durumu (varsa)', placeholder: 'Örn. Alzheimer, ilaç kullanımı' },
       ] },
   };
 
@@ -476,7 +505,7 @@
       details: a.details, distance: (typeof a.distanceKm === 'number') ? a.distanceKm : null,
       photoDataUrl: a.photoDataUrl || null,
       stageIdx: a.stageIdx, elapsedMin: a.elapsedMinutes,
-      status: a.status, tips: [], tipCount: a.tipCount || 0, _fromApi: true,
+      status: a.status, tips: [], tipCount: a.tipCount || 0, ownerId: a.ownerId, _fromApi: true,
     };
   }
 
@@ -514,6 +543,7 @@
     myLat: null,
     myLng: null,
     reportPhotoDataUrl: null,
+    reportLocationDiffers: false,
     reportTitleDraft: '',
     reportDescDraft: '',
     feedFilter: 'all',
@@ -768,8 +798,9 @@
     const alerts = filter === 'all' ? state.alerts : state.alerts.filter(a => a.cat === filter);
     const cards = alerts.map(a => {
       const cat = CATS[a.cat];
-      const stage = STAGES[a.stageIdx];
-      const pct = Math.round(((a.stageIdx+1)/STAGES.length)*100);
+      const catStages = stagesFor(a.cat);
+      const stage = catStages[a.stageIdx];
+      const pct = Math.round(((a.stageIdx+1)/catStages.length)*100);
       return `
       <div class="alert-card" data-open="${a.id}">
         ${a.status === 'bulundu' ? '<div class="found-badge">Bulundu</div>' : ''}
@@ -822,15 +853,16 @@
     const a = state.alerts.find(x => x.id === state.detailId);
     if (!a) return renderFeed();
     const cat = CATS[a.cat];
+    const catStages = stagesFor(a.cat);
 
     let ringsHtml = '';
-    STAGES.forEach((s, i) => {
+    catStages.forEach((s, i) => {
       const reached = i <= a.stageIdx;
       const isCurrent = i === a.stageIdx && a.status === 'aktif';
       ringsHtml += `<div class="radar-ring ${reached ? 'filled':''} ${isCurrent ? 'pulsing':''}" style="width:${s.size}px;height:${s.size}px;"></div>`;
     });
 
-    const timelineHtml = STAGES.map((s, i) => {
+    const timelineHtml = catStages.map((s, i) => {
       const reached = i <= a.stageIdx;
       const isCurrent = i === a.stageIdx;
       const dotCls = isCurrent && a.status === 'aktif' ? 'now' : (reached ? 'done' : '');
@@ -840,7 +872,7 @@
       <div class="tl-row">
         <div class="tl-marker-col">
           <div class="tl-dot ${dotCls}"></div>
-          ${i < STAGES.length-1 ? `<div class="tl-line ${lineCls}"></div>` : ''}
+          ${i < catStages.length-1 ? `<div class="tl-line ${lineCls}"></div>` : ''}
         </div>
         <div class="tl-content">
           <div class="tl-title">${s.label} çap</div>
@@ -898,11 +930,16 @@
     document.getElementById('cb-back').onclick = () => go('feed');
 
     if (a.status === 'aktif') {
+      // "Bulundu" butonu SADECE ilanı paylaşan kişiye gösterilir. Yerel demo modundaki
+      // (backend'e bağlı olmayan) bildirimlerde gerçek çoklu kullanıcı kavramı yok,
+      // o yüzden orada herkese gösterilir (zaten tek kişi kullanıyor demektir).
+      const isOwner = !a._fromApi || (state.user && a.ownerId === state.user.id);
+
       const bar = document.createElement('div');
       bar.className = 'action-bar sticky';
       bar.innerHTML = `
         <button class="btn-primary btn-ghost" id="cb-tip"><i class="ti ti-eye"></i> Gördüm, ipucu ver</button>
-        <button class="btn-primary" id="cb-found" style="flex:0 0 120px; background:var(--panel-2); color:var(--signal); border:0.5px solid var(--signal);"><i class="ti ti-check"></i> Bulundu</button>
+        ${isOwner ? `<button class="btn-primary" id="cb-found" style="flex:0 0 120px; background:var(--panel-2); color:var(--signal); border:0.5px solid var(--signal);"><i class="ti ti-check"></i> Bulundu</button>` : ''}
       `;
       screenEl.appendChild(bar);
       document.getElementById('cb-tip').onclick = async () => {
@@ -918,15 +955,17 @@
         showToast('İpucunuz bildirim sahibine iletildi.');
         renderDetail();
       };
-      document.getElementById('cb-found').onclick = async () => {
-        if (state.backendAvailable && state.token && a._fromApi) {
-          const result = await api.markFound(a.id);
-          if (!result.ok) { showToast(result.error || 'İşlem başarısız.'); return; }
-        }
-        a.status = 'bulundu';
-        showToast('Bildirim kapatıldı, çevredeki bildirimler durduruldu.');
-        renderDetail();
-      };
+      if (isOwner) {
+        document.getElementById('cb-found').onclick = async () => {
+          if (state.backendAvailable && state.token && a._fromApi) {
+            const result = await api.markFound(a.id);
+            if (!result.ok) { showToast(result.error || 'İşlem başarısız.'); return; }
+          }
+          a.status = 'bulundu';
+          showToast('Bildirim kapatıldı, çevredeki bildirimler durduruldu.');
+          renderDetail();
+        };
+      }
     }
   }
 
@@ -960,15 +999,15 @@
           const opts = f.options.map(o => `<option value="${esc(o)}" ${o === currentVal ? 'selected' : ''}>${esc(o)}</option>`).join('');
           return `<div class="field-group"><label class="field-label">${esc(f.label)}</label><select class="field-select" data-field="${f.key}">${opts}</select></div>`;
         }
-        return `<div class="field-group"><label class="field-label">${esc(f.label)}</label><input class="field-input" data-field="${f.key}" placeholder="${esc(f.placeholder||'')}" value="${esc(currentVal)}" /></div>`;
+        return `<div class="field-group"><label class="field-label">${esc(f.label)}${f.required ? ' <span style="color:var(--danger);">*</span>' : ''}</label><input class="field-input" data-field="${f.key}" data-required="${f.required ? '1' : ''}" placeholder="${esc(f.placeholder||'')}" value="${esc(currentVal)}" /></div>`;
       }).join('');
 
       screenEl.innerHTML = `
         <div class="topbar"><div class="icon-btn" id="cb-back2"><i class="ti ti-arrow-left"></i></div><div class="icon-btn" data-go-home="1"><i class="ti ti-home-2"></i></div></div>
         <h1 class="page-title">${cat.name} detayları</h1>
-        <p class="page-sub">Ne kadar net olursa, tanıma ihtimali o kadar artar.</p>
+        <p class="page-sub">Ne kadar net olursa, tanıma ihtimali o kadar artar. <span style="color:var(--danger);">*</span> ile işaretli alanlar zorunludur.</p>
         <div class="field-group">
-          <label class="field-label">Başlık</label>
+          <label class="field-label">Başlık <span style="color:var(--danger);">*</span></label>
           <input class="field-input" id="cb-title" placeholder="Örn. Kırmızı şehir bisikleti çalındı" value="${esc(state.reportTitleDraft || '')}" />
         </div>
         ${dynamicFieldsHtml}
@@ -989,17 +1028,37 @@
         <div class="field-group">
           <label class="field-label">Konum</label>
           <div class="loc-box"><i class="ti ti-map-pin"></i> Mevcut konumunuz kullanılacak (izin verirsen)</div>
+          <div style="display:flex; align-items:center; gap:8px; padding-top:8px;">
+            <div class="toggle ${state.reportLocationDiffers ? 'on' : ''}" id="cb-loc-toggle"><div class="knob"></div></div>
+            <span style="font-size:12.5px; color:var(--text-dim);">Kaybolma/olay yeri, şu anki konumumdan farklı</span>
+          </div>
+          ${state.reportLocationDiffers ? `<div style="font-size:11.5px; color:var(--text-faint); padding-top:6px;">Bu işaretliyken konum gönderilmeyecek — mesafe "bilinmiyor" görünecek. Olayın nerede geçtiğini açıklama alanına yazman yeterli.</div>` : ''}
+        </div>
+        <div class="field-group">
+          <div class="field-error" id="cb-report2-err" style="margin-top:0;"></div>
         </div>
         <div class="action-bar"><button class="btn-primary" id="cb-next2">Önizlemeye geç</button></div>
       `;
       document.getElementById('cb-back2').onclick = () => { state.reportStep = 1; renderReport(); };
+      document.getElementById('cb-loc-toggle').onclick = () => {
+        state.reportLocationDiffers = !state.reportLocationDiffers;
+        renderReport();
+      };
 
       // Her tuş vuruşunda state'e yaz — fotoğraf eklenip ekran yeniden çizilse bile veriler kaybolmasın
-      document.getElementById('cb-title').oninput = (e) => { state.reportTitleDraft = e.target.value; };
+      document.getElementById('cb-title').oninput = (e) => {
+        state.reportTitleDraft = e.target.value;
+        e.target.classList.remove('invalid');
+        document.getElementById('cb-report2-err').classList.remove('show');
+      };
       document.getElementById('cb-desc').oninput = (e) => { state.reportDescDraft = e.target.value; };
       screenEl.querySelectorAll('[data-field]').forEach(el => {
         const evt = el.tagName === 'SELECT' ? 'onchange' : 'oninput';
-        el[evt] = (e) => { state.reportDetails[el.dataset.field] = e.target.value; };
+        el[evt] = (e) => {
+          state.reportDetails[el.dataset.field] = e.target.value;
+          el.classList.remove('invalid');
+          document.getElementById('cb-report2-err').classList.remove('show');
+        };
       });
 
       document.getElementById('cb-photo-add').onclick = () => document.getElementById('cb-photo-input').click();
@@ -1018,7 +1077,41 @@
       const removeBtn = document.getElementById('cb-photo-remove');
       if (removeBtn) removeBtn.onclick = () => { state.reportPhotoDataUrl = null; renderReport(); };
       document.getElementById('cb-next2').onclick = () => {
-        state.reportTitle = (document.getElementById('cb-title').value || '').trim() || 'Başlıksız bildirim';
+        const err = document.getElementById('cb-report2-err');
+        const titleInput = document.getElementById('cb-title');
+        err.classList.remove('show');
+        titleInput.classList.remove('invalid');
+        screenEl.querySelectorAll('[data-field]').forEach(el => el.classList.remove('invalid'));
+
+        const titleVal = (titleInput.value || '').trim();
+        if (!titleVal) {
+          titleInput.classList.add('invalid');
+          err.textContent = 'Başlık boş geçilemez.';
+          err.classList.add('show');
+          titleInput.focus();
+          return;
+        }
+
+        // Kategoriye özel zorunlu alanları kontrol et (bisiklet->marka/renk, evcil->tür/isim/renk, kişi->yaş/kıyafet vs.)
+        let firstInvalidEl = null;
+        let firstInvalidLabel = '';
+        screenEl.querySelectorAll('[data-field]').forEach(el => {
+          if (firstInvalidEl) return;
+          if (el.dataset.required === '1' && !el.value.trim()) {
+            firstInvalidEl = el;
+            const fieldDef = cat.fields.find(f => f.key === el.dataset.field);
+            firstInvalidLabel = fieldDef ? fieldDef.label : el.dataset.field;
+          }
+        });
+        if (firstInvalidEl) {
+          firstInvalidEl.classList.add('invalid');
+          err.textContent = `"${firstInvalidLabel}" alanı bu kategori için zorunludur.`;
+          err.classList.add('show');
+          firstInvalidEl.focus();
+          return;
+        }
+
+        state.reportTitle = titleVal;
         state.reportDesc = (document.getElementById('cb-desc').value || '').trim() || 'Açıklama eklenmedi.';
         screenEl.querySelectorAll('[data-field]').forEach(el => {
           state.reportDetails[el.dataset.field] = el.value.trim() || '—';
@@ -1053,9 +1146,9 @@
         <div class="detail-chip-wrap">${chipsPreview}</div>
         <div class="section-label">Yarıçap zamanlaması</div>
         <div class="timeline">
-          ${STAGES.map((s,i)=>`
+          ${stagesFor(state.reportCat).map((s,i)=>`
           <div class="tl-row">
-            <div class="tl-marker-col"><div class="tl-dot ${i===0?'now':''}"></div>${i<STAGES.length-1?'<div class="tl-line"></div>':''}</div>
+            <div class="tl-marker-col"><div class="tl-dot ${i===0?'now':''}"></div>${i<stagesFor(state.reportCat).length-1?'<div class="tl-line"></div>':''}</div>
             <div class="tl-content"><div class="tl-title">${s.label}</div><div class="tl-sub">${s.minutes===0?'Anında':s.minutes+' dk sonra'}</div></div>
           </div>`).join('')}
         </div>
@@ -1081,14 +1174,16 @@
         if (state.backendAvailable && state.token) {
           publishBtn.disabled = true;
           publishBtn.textContent = 'Yayınlanıyor...';
-          if (state.myLat === null) {
+          if (!state.reportLocationDiffers && state.myLat === null) {
             const loc = await getMyLocation();
             if (loc) { state.myLat = loc.lat; state.myLng = loc.lng; }
           }
+          const sendLat = state.reportLocationDiffers ? null : state.myLat;
+          const sendLng = state.reportLocationDiffers ? null : state.myLng;
           const result = await api.createAlert({
             category: state.reportCat, title: state.reportTitle, description: state.reportDesc,
             details: Object.assign({}, state.reportDetails),
-            lat: state.myLat, lng: state.myLng,
+            lat: sendLat, lng: sendLng,
             photoDataUrl: state.reportPhotoDataUrl || null,
           });
           if (!result.ok) {
@@ -1101,7 +1196,7 @@
           }
           const newAlert = mapApiAlert(result.data.alert);
           state.alerts.unshift(newAlert);
-          state.reportStep = 1; state.reportCat = null; state.reportDetails = {}; state.reportPhotoDataUrl = null;
+          state.reportStep = 1; state.reportCat = null; state.reportDetails = {}; state.reportPhotoDataUrl = null; state.reportLocationDiffers = false;
           state.reportTitleDraft = ''; state.reportDescDraft = '';
           state.detailId = newAlert.id;
           go('detail');
@@ -1118,7 +1213,7 @@
           distance: null, stageIdx: 0, elapsedMin: 0, status: 'aktif', tips: [],
         };
         state.alerts.unshift(newAlert);
-        state.reportStep = 1; state.reportCat = null; state.reportDetails = {}; state.reportPhotoDataUrl = null;
+        state.reportStep = 1; state.reportCat = null; state.reportDetails = {}; state.reportPhotoDataUrl = null; state.reportLocationDiffers = false;
         state.reportTitleDraft = ''; state.reportDescDraft = '';
         state.detailId = id;
         startSim(id);
@@ -1134,11 +1229,12 @@
     const timer = setInterval(() => {
       const a = state.alerts.find(x => x.id === id);
       if (!a || a.status !== 'aktif') { clearInterval(timer); return; }
+      const catStages = stagesFor(a.cat);
       stage++;
-      if (stage >= STAGES.length) { clearInterval(timer); return; }
+      if (stage >= catStages.length) { clearInterval(timer); return; }
       a.stageIdx = stage;
-      a.elapsedMin = STAGES[stage].minutes;
-      showToast('Bildiriminiz ' + STAGES[stage].label + ' çapına ulaştı.');
+      a.elapsedMin = catStages[stage].minutes;
+      showToast('Bildiriminiz ' + catStages[stage].label + ' çapına ulaştı.');
       if (state.nav === 'detail' && state.detailId === id) renderDetail();
       if (state.nav === 'feed') renderFeed();
     }, 7000);
@@ -1164,14 +1260,23 @@
       </div>
       <div class="section-label">Sizden en yakın</div>
       <div class="card-list" style="padding-bottom:100px;">
-        ${state.alerts.filter(a=>a.status==='aktif').slice(0,3).map(a => `
+        ${(() => {
+          const nearest = state.alerts.filter(a => a.status === 'aktif').slice(0, 3);
+          if (!nearest.length) {
+            return `<div class="empty-state" style="padding:30px 20px;"><i class="ti ti-map-off"></i><div>Şu an yakınında aktif bir bildirim yok.</div></div>`;
+          }
+          return nearest.map(a => `
           <div class="alert-card" data-open="${a.id}">
             <div class="ac-top">
               <div class="ac-icon ${CATS[a.cat].cls}"><i class="ti ${CATS[a.cat].icon}"></i></div>
               <div class="ac-body"><div class="ac-title">${esc(a.title)}</div><div class="ac-meta"><span>${a.distance === null ? 'mesafe bilinmiyor' : a.distance + ' km'}</span></div></div>
             </div>
-          </div>`).join('')}
+          </div>`).join('');
+        })()}
       </div>
+      <p style="padding: 0 20px 20px; font-size: 11px; color: var(--text-faint); text-align:center;">
+        Haritadaki nokta konumları şu an temsili/gösterim amaçlıdır, gerçek koordinatları yansıtmaz.
+      </p>
     `;
     screenEl.querySelectorAll('[data-open]').forEach(el => {
       el.onclick = () => { state.detailId = Number(el.dataset.open); go('detail'); };
@@ -1187,7 +1292,7 @@
         if (a.status === 'bulundu') {
           items.push({ icon: 'ti-circle-check', text: `"${a.title}" bulundu olarak işaretlendi.`, sortMin: a.elapsedMin });
         } else {
-          items.push({ icon: 'ti-radar-2', text: `"${a.title}" bildirimi ${STAGES[a.stageIdx].label} çapına ulaştı.`, sortMin: a.elapsedMin });
+          items.push({ icon: 'ti-radar-2', text: `"${a.title}" bildirimi ${stagesFor(a.cat)[a.stageIdx].label} çapına ulaştı.`, sortMin: a.elapsedMin });
         }
         const tipCount = (a.tips && a.tips.length) || a.tipCount || 0;
         if (tipCount) {
@@ -1267,7 +1372,7 @@
     });
     if (nav === 'feed') { renderFeed(); refreshFeedFromApi(); }
     else if (nav === 'map') renderMap();
-    else if (nav === 'report') { state.reportStep = 1; state.reportCat = null; state.reportPhotoDataUrl = null; state.reportTitleDraft = ''; state.reportDescDraft = ''; state.reportDetails = {}; renderReport(); }
+    else if (nav === 'report') { state.reportStep = 1; state.reportCat = null; state.reportPhotoDataUrl = null; state.reportLocationDiffers = false; state.reportTitleDraft = ''; state.reportDescDraft = ''; state.reportDetails = {}; renderReport(); }
     else if (nav === 'notifs') renderNotifs();
     else if (nav === 'profile') renderProfile();
     else if (nav === 'detail') { renderDetail(); refreshDetailFromApi(state.detailId); }
