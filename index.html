@@ -499,6 +499,30 @@
     });
   }
 
+  const COMPASS_BEARINGS = {
+    'Kuzey': 0, 'Kuzeydoğu': 45, 'Doğu': 90, 'Güneydoğu': 135,
+    'Güney': 180, 'Güneybatı': 225, 'Batı': 270, 'Kuzeybatı': 315,
+  };
+
+  // Bilinen bir başlangıç noktasından (mevcut konum), verilen mesafe (km) ve pusula
+  // yönünde ne kadar ötede bir nokta olduğunu hesaplar (küresel dünya yaklaşımı).
+  // Böylece "olay yeri farklı" durumunda tam bir harita seçici gerekmeden, kullanıcının
+  // verdiği yaklaşık mesafe/yön bilgisiyle gerçek bir koordinat üretip mesafe/yarıçap
+  // sisteminin o ilan için de doğru çalışmasını sağlıyoruz.
+  function destinationPoint(lat, lng, distanceKm, bearingDeg) {
+    const R = 6371; // km
+    const δ = distanceKm / R;
+    const θ = (bearingDeg * Math.PI) / 180;
+    const φ1 = (lat * Math.PI) / 180;
+    const λ1 = (lng * Math.PI) / 180;
+    const φ2 = Math.asin(Math.sin(φ1) * Math.cos(δ) + Math.cos(φ1) * Math.sin(δ) * Math.cos(θ));
+    const λ2 = λ1 + Math.atan2(
+      Math.sin(θ) * Math.sin(δ) * Math.cos(φ1),
+      Math.cos(δ) - Math.sin(φ1) * Math.sin(φ2)
+    );
+    return { lat: (φ2 * 180) / Math.PI, lng: (λ2 * 180) / Math.PI };
+  }
+
   function mapApiAlert(a) {
     return {
       id: a.id, cat: a.category, title: a.title, desc: a.description,
@@ -544,6 +568,8 @@
     myLng: null,
     reportPhotoDataUrl: null,
     reportLocationDiffers: false,
+    reportLocDistanceKm: '',
+    reportLocDirection: 'Kuzey',
     reportTitleDraft: '',
     reportDescDraft: '',
     feedFilter: 'all',
@@ -1032,7 +1058,26 @@
             <div class="toggle ${state.reportLocationDiffers ? 'on' : ''}" id="cb-loc-toggle"><div class="knob"></div></div>
             <span style="font-size:12.5px; color:var(--text-dim);">Kaybolma/olay yeri, şu anki konumumdan farklı</span>
           </div>
-          ${state.reportLocationDiffers ? `<div style="font-size:11.5px; color:var(--text-faint); padding-top:6px;">Bu işaretliyken konum gönderilmeyecek — mesafe "bilinmiyor" görünecek. Olayın nerede geçtiğini açıklama alanına yazman yeterli.</div>` : ''}
+          ${state.reportLocationDiffers ? `
+          <div style="padding-top:10px;">
+            <div style="font-size:11.5px; color:var(--text-faint); padding-bottom:8px;">
+              Konumundan yaklaşık ne kadar uzakta ve hangi yönde olduğunu belirt — buna göre haritada yaklaşık bir nokta hesaplanır, mesafe/yarıçap sistemi bu ilan için de doğru çalışmaya devam eder.
+            </div>
+            <div style="display:flex; gap:8px;">
+              <div style="flex:1;">
+                <label class="field-label" style="font-size:11px;">Yaklaşık mesafe (km)</label>
+                <input type="number" min="0" step="0.1" class="field-input" id="cb-loc-distance" placeholder="Örn. 2.5" value="${state.reportLocDistanceKm || ''}" />
+              </div>
+              <div style="flex:1;">
+                <label class="field-label" style="font-size:11px;">Yön</label>
+                <select class="field-select" id="cb-loc-direction">
+                  ${['Kuzey','Kuzeydoğu','Doğu','Güneydoğu','Güney','Güneybatı','Batı','Kuzeybatı'].map(d =>
+                    `<option value="${d}" ${state.reportLocDirection===d?'selected':''}>${d}</option>`).join('')}
+                </select>
+              </div>
+            </div>
+            <div style="font-size:11px; color:var(--text-faint); padding-top:8px;" id="cb-loc-preview"></div>
+          </div>` : ''}
         </div>
         <div class="field-group">
           <div class="field-error" id="cb-report2-err" style="margin-top:0;"></div>
@@ -1040,10 +1085,33 @@
         <div class="action-bar"><button class="btn-primary" id="cb-next2">Önizlemeye geç</button></div>
       `;
       document.getElementById('cb-back2').onclick = () => { state.reportStep = 1; renderReport(); };
-      document.getElementById('cb-loc-toggle').onclick = () => {
+      document.getElementById('cb-loc-toggle').onclick = async () => {
         state.reportLocationDiffers = !state.reportLocationDiffers;
+        // Ofset hesaplayabilmek için bir çıpa (mevcut konum) lazım — henüz yoksa iste.
+        if (state.reportLocationDiffers && state.myLat === null) {
+          const loc = await getMyLocation();
+          if (loc) { state.myLat = loc.lat; state.myLng = loc.lng; }
+        }
         renderReport();
       };
+      const locDistInput = document.getElementById('cb-loc-distance');
+      const locDirSelect = document.getElementById('cb-loc-direction');
+      const locPreview = document.getElementById('cb-loc-preview');
+      function updateLocPreview() {
+        if (!locPreview) return;
+        if (state.myLat === null) {
+          locPreview.textContent = 'Bu özellik için konumuna erişim gerekiyor — tarayıcı izin isteğini onayla.';
+          return;
+        }
+        const dist = Number(locDistInput.value);
+        if (!dist || dist <= 0) { locPreview.textContent = ''; return; }
+        locPreview.textContent = `Yaklaşık konum: mevcut yerinden ${dist} km ${state.reportLocDirection} yönünde hesaplanacak.`;
+      }
+      if (locDistInput) {
+        locDistInput.oninput = (e) => { state.reportLocDistanceKm = e.target.value; updateLocPreview(); };
+        locDirSelect.onchange = (e) => { state.reportLocDirection = e.target.value; updateLocPreview(); };
+        updateLocPreview();
+      }
 
       // Her tuş vuruşunda state'e yaz — fotoğraf eklenip ekran yeniden çizilse bile veriler kaybolmasın
       document.getElementById('cb-title').oninput = (e) => {
@@ -1178,8 +1246,22 @@
             const loc = await getMyLocation();
             if (loc) { state.myLat = loc.lat; state.myLng = loc.lng; }
           }
-          const sendLat = state.reportLocationDiffers ? null : state.myLat;
-          const sendLng = state.reportLocationDiffers ? null : state.myLng;
+          let sendLat = state.myLat;
+          let sendLng = state.myLng;
+          if (state.reportLocationDiffers) {
+            const dist = Number(state.reportLocDistanceKm);
+            if (state.myLat !== null && dist > 0) {
+              const bearing = COMPASS_BEARINGS[state.reportLocDirection] ?? 0;
+              const dest = destinationPoint(state.myLat, state.myLng, dist, bearing);
+              sendLat = dest.lat;
+              sendLng = dest.lng;
+            } else {
+              // Mesafe girilmemiş veya konuma hiç erişilememiş: gerçek bir nokta hesaplanamaz,
+              // yanlış konum göndermektense hiç göndermemek daha güvenli.
+              sendLat = null;
+              sendLng = null;
+            }
+          }
           const result = await api.createAlert({
             category: state.reportCat, title: state.reportTitle, description: state.reportDesc,
             details: Object.assign({}, state.reportDetails),
@@ -1196,7 +1278,7 @@
           }
           const newAlert = mapApiAlert(result.data.alert);
           state.alerts.unshift(newAlert);
-          state.reportStep = 1; state.reportCat = null; state.reportDetails = {}; state.reportPhotoDataUrl = null; state.reportLocationDiffers = false;
+          state.reportStep = 1; state.reportCat = null; state.reportDetails = {}; state.reportPhotoDataUrl = null; state.reportLocationDiffers = false; state.reportLocDistanceKm = ''; state.reportLocDirection = 'Kuzey';
           state.reportTitleDraft = ''; state.reportDescDraft = '';
           state.detailId = newAlert.id;
           go('detail');
@@ -1213,7 +1295,7 @@
           distance: null, stageIdx: 0, elapsedMin: 0, status: 'aktif', tips: [],
         };
         state.alerts.unshift(newAlert);
-        state.reportStep = 1; state.reportCat = null; state.reportDetails = {}; state.reportPhotoDataUrl = null; state.reportLocationDiffers = false;
+        state.reportStep = 1; state.reportCat = null; state.reportDetails = {}; state.reportPhotoDataUrl = null; state.reportLocationDiffers = false; state.reportLocDistanceKm = ''; state.reportLocDirection = 'Kuzey';
         state.reportTitleDraft = ''; state.reportDescDraft = '';
         state.detailId = id;
         startSim(id);
@@ -1372,7 +1454,7 @@
     });
     if (nav === 'feed') { renderFeed(); refreshFeedFromApi(); }
     else if (nav === 'map') renderMap();
-    else if (nav === 'report') { state.reportStep = 1; state.reportCat = null; state.reportPhotoDataUrl = null; state.reportLocationDiffers = false; state.reportTitleDraft = ''; state.reportDescDraft = ''; state.reportDetails = {}; renderReport(); }
+    else if (nav === 'report') { state.reportStep = 1; state.reportCat = null; state.reportPhotoDataUrl = null; state.reportLocationDiffers = false; state.reportLocDistanceKm = ''; state.reportLocDirection = 'Kuzey'; state.reportTitleDraft = ''; state.reportDescDraft = ''; state.reportDetails = {}; renderReport(); }
     else if (nav === 'notifs') renderNotifs();
     else if (nav === 'profile') renderProfile();
     else if (nav === 'detail') { renderDetail(); refreshDetailFromApi(state.detailId); }
