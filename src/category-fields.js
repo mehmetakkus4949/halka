@@ -6,6 +6,10 @@ const REQUIRED_FIELDS = {
     { key: 'marka', label: 'Marka / model' },
     { key: 'renk', label: 'Renk' },
   ],
+  motor: [
+    { key: 'marka', label: 'Marka / model' },
+    { key: 'renk', label: 'Renk' },
+  ],
   arac: [
     { key: 'plaka', label: 'Plaka' },
     { key: 'marka', label: 'Marka / model' },

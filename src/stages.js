@@ -8,6 +8,12 @@ const STAGES_BY_CATEGORY = {
     { label: '5 km', minutes: 60 },
     { label: '20 km', minutes: 180 },
   ],
+  motor: [
+    { label: '500 m', minutes: 0 },
+    { label: '3 km', minutes: 10 },
+    { label: '10 km', minutes: 30 },
+    { label: '40 km', minutes: 90 },
+  ],
   arac: [
     { label: '500 m', minutes: 0 },
     { label: '2 km', minutes: 15 },
